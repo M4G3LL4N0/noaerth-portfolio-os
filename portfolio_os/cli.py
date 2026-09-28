@@ -499,13 +499,13 @@ def _print_running(port: int) -> None:
         except json.JSONDecodeError:
             pass
     daemon = "healthy" if daemon_is_fresh(beat_path) else "starting"
-    print("Portfolio OS")
-    print("Running")
-    print()
-    print(f"UI: http://127.0.0.1:{port}")
-    print(f"Daemon: {daemon}")
-    print("Model: grok-4.7")
-    print(f"Workers: {lanes.get('mutation', '?')} mutation / {lanes.get('reviewer', '?')} reviewer")
+    print("Portfolio OS", flush=True)
+    print("Running", flush=True)
+    print(flush=True)
+    print(f"UI: http://127.0.0.1:{port}", flush=True)
+    print(f"Daemon: {daemon}", flush=True)
+    print("Model: grok-4.7", flush=True)
+    print(f"Workers: {lanes.get('mutation', '?')} mutation / {lanes.get('reviewer', '?')} reviewer", flush=True)
 
 
 def _open_bootstrap(port: int) -> None:
