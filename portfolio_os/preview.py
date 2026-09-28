@@ -60,7 +60,8 @@ def dev_argv(profile: dict, port: int) -> list[str]:
     flags = ["--hostname", "127.0.0.1", "--port", str(port)]
     if manager == "npm":
         return ["npm", "run", "dev", "--", *flags]
-    return [manager, "dev", "--", *flags]
+    # pnpm and yarn forward these flags to the dev script. An extra "--" becomes a directory.
+    return [manager, "dev", *flags]
 
 
 def screenshot_matches(record: dict, commit: str) -> bool:

@@ -54,7 +54,8 @@ class PreviewTests(unittest.TestCase):
         profile = detect_profile(self.root / "acme", self.root)
         self.assertEqual(profile["manager"], "pnpm")
         argv = dev_argv(profile, 4300)
-        self.assertEqual(argv[:3], ["pnpm", "dev", "--"])
+        self.assertEqual(argv[:2], ["pnpm", "dev"])
+        self.assertNotIn("--", argv)
         self.assertIn("127.0.0.1", argv)
 
     def test_second_start_reuses_the_running_preview(self):
