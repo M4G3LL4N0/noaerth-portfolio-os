@@ -47,6 +47,28 @@ Deployment attempts stay suppressed while a Vercel daily-cap blocker is on recor
 
 Set `NOAERTH_TEAM_SECRET` to a long random value in the server environment. Do not commit it. The login route compares a hash of the submitted password with a hash of that secret and sets an HTTP-only cookie. If the variable is missing, `/team` shows no internal data.
 
+## Two browsers
+
+Team is the studio. Portfolio OS UI is the engine. They share one database and one evidence directory.
+
+```sh
+cd ~/startups/noaerth-portfolio-os
+PORTFOLIO_OS_API_TOKEN=... portfolio up
+```
+
+That starts the daemon only when the heartbeat is stale, then serves the engine UI at `http://127.0.0.1:8787`. `portfolio down` stops that server and asks the daemon to exit. `portfolio down --all-previews` also stops previews this process owns.
+
+Team runs separately:
+
+```sh
+cd ~/startups/noaerth-portfolio-os/worktrees/noaerth-team
+pnpm dev
+```
+
+The checkout at `~/startups/noaerth-team` is still the historical `main` tree and is dirty. It is not switched. The operating Team branch is `portfolio/noaerth-team/public-room`. Local login uses `NOAERTH_TEAM_SECRET` in an ignored `.env.local`. The preferred hostname remains `noaerth-team.noaerth.com`. Do not deploy it until that secret is set in production and a human approves the commit.
+
+Daily loop: open Team, review screenshots, approve an exact commit, queue deployment. Open Portfolio OS when you need workers, locks, the shard cycle, or a preview process. Neither button deploys to Vercel by itself.
+
 ## CLI
 
 From this directory:

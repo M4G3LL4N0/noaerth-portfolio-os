@@ -1,12 +1,16 @@
-"""Small internal HTTP API. Labs reads public snapshots. Team actions are allowlisted."""
+"""Small internal HTTP API plus the local engine UI. Labs reads public snapshots."""
 
 from __future__ import annotations
 
+import hmac
 import json
 import sqlite3
+from pathlib import Path
+from urllib.parse import parse_qs
 
 from portfolio_os.engine import add_event, ensure_work, startup_by_slug
 from portfolio_os.publish import build_public_snapshot
+from portfolio_os.ui import login_page, page as render_page
 
 ALLOWED_ACTIONS = frozenset(
     {
@@ -20,6 +24,10 @@ ALLOWED_ACTIONS = frozenset(
         "trigger_review",
         "start_preview",
         "stop_preview",
+        "capture",
+        "pause_task",
+        "resume_task",
+        "cancel_task",
         "approve_visual",
         "approve_release",
         "queue_deployment",
@@ -40,6 +48,38 @@ def _public_view(conn: sqlite3.Connection, kind: str) -> dict:
     return snapshot
 
 
+def _authorized(headers: dict, token: str) -> bool:
+    presented = headers.get("authorization", "")
+    if token and hmac.compare_digest(presented, f"Bearer {token}"):
+        return True
+    for part in headers.get("cookie", "").split(";"):
+        name, _, value = part.strip().partition("=")
+        if name == "portfolio_os_session" and token and hmac.compare_digest(value, token):
+            return True
+    return False
+
+
+def _form(raw: bytes) -> dict:
+    parsed = parse_qs(raw.decode("utf-8"), keep_blank_values=True)
+    return {key: values[0] if values else "" for key, values in parsed.items()}
+
+
+UI_PATHS = {
+    "/",
+    "/workers",
+    "/agents",
+    "/queue",
+    "/coverage",
+    "/startups",
+    "/previews",
+    "/releases",
+    "/providers/vercel",
+    "/workspaces",
+    "/events",
+    "/system",
+}
+
+
 def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, body: dict | None, token: str) -> tuple[int, dict]:
     public_routes = {
         "/public/v1/snapshot": "snapshot",
@@ -49,8 +89,7 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
     }
     if path in public_routes and method == "GET":
         return 200, _public_view(conn, public_routes[path])
-    presented = headers.get("authorization", "")
-    if not token or presented != f"Bearer {token}":
+    if not _authorized(headers, token):
         return 401, {"error": "unauthorized"}
     if path == "/api/v1/health" and method == "GET":
         return 200, {"ok": True, "schema": SCHEMA_VERSION}
@@ -113,14 +152,33 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
         from pathlib import Path
 
         from portfolio_os.exclusion import ExclusionError
-        from portfolio_os.preview import PreviewManager, approve_release, approve_visual, queue_deployment
+        from portfolio_os.preview import PreviewManager, approve_release, approve_visual, chrome_capture, queue_deployment
 
         portfolio_root = Path(__file__).resolve().parents[2]
+        manager = PreviewManager(conn, portfolio_root, capturer=chrome_capture)
         try:
             if action == "start_preview":
-                result = PreviewManager(conn, portfolio_root).start(slug)
+                result = manager.start(slug)
             elif action == "stop_preview":
-                result = PreviewManager(conn, portfolio_root).stop(slug)
+                result = manager.stop(slug)
+            elif action == "capture":
+                current = conn.execute(
+                    """
+                    SELECT preview_runs.commit_sha, preview_runs.branch, preview_runs.port, preview_runs.status
+                    FROM preview_runs JOIN startups ON startups.id = preview_runs.startup_id
+                    WHERE startups.slug = ? ORDER BY preview_runs.id DESC LIMIT 1
+                    """,
+                    (slug,),
+                ).fetchone()
+                if current is None or current["status"] != "RUNNING" or not current["port"]:
+                    result = {"ok": False, "state": "NO_RUNNING_PREVIEW"}
+                else:
+                    result = manager.capture(
+                        slug,
+                        f"http://127.0.0.1:{current['port']}",
+                        current["commit_sha"] or "",
+                        current["branch"] or "",
+                    )
             else:
                 commit = str(payload.get("commit") or "")
                 if not commit:
@@ -150,6 +208,20 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
             startup_id=startup["id"],
         )
         return 200, {"ok": True, "action": action, "slug": slug, "result": result}
+    elif action in {"pause_task", "resume_task", "cancel_task"}:
+        item_id = int(payload.get("work_item") or 0)
+        item = conn.execute(
+            "SELECT id, status FROM work_items WHERE id = ? AND startup_id = ?",
+            (item_id, startup["id"]),
+        ).fetchone()
+        if item is None:
+            return 404, {"error": "not_found"}
+        if action == "cancel_task" and item["status"] not in {"queued", "paused", "blocked"}:
+            return 400, {"error": "unsafe_cancel"}
+        next_status = {"pause_task": "paused", "resume_task": "queued", "cancel_task": "cancelled"}[action]
+        if action == "resume_task" and item["status"] not in {"paused", "blocked"}:
+            return 400, {"error": "not_paused"}
+        conn.execute("UPDATE work_items SET status = ? WHERE id = ?", (next_status, item["id"]))
     elif action == "trigger_review":
         ensure_work(
             conn,
@@ -178,32 +250,85 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
     return 200, {"ok": True, "action": action, "slug": slug}
 
 
+def handle(conn: sqlite3.Connection, method: str, path: str, headers: dict, raw: bytes, token: str, root: Path) -> tuple[int, str, bytes, dict]:
+    """Return status, content type, body, and extra headers."""
+    extra: dict[str, str] = {}
+    if path == "/login" and method == "GET":
+        return 200, "text/html; charset=utf-8", login_page().encode("utf-8"), extra
+    if path == "/login" and method == "POST":
+        supplied = _form(raw).get("token", "")
+        if token and hmac.compare_digest(supplied, token):
+            extra["Set-Cookie"] = "portfolio_os_session=" + token + "; HttpOnly; SameSite=Strict; Path=/"
+            extra["Location"] = "/"
+            return 302, "text/plain", b"", extra
+        return 401, "text/html; charset=utf-8", login_page(failed=True).encode("utf-8"), extra
+    ui = path in UI_PATHS or path.startswith("/startups/")
+    evidence = path.startswith("/evidence/")
+    if ui or evidence or path == "/ui/action":
+        if not _authorized(headers, token):
+            extra["Location"] = "/login"
+            return 302, "text/plain", b"", extra
+    if path == "/ui/action" and method == "POST":
+        status, payload = dispatch(conn, "POST", "/api/v1/actions", headers, _form(raw), token)
+        extra["Location"] = headers.get("referer") or "/"
+        return 303 if status < 400 else status, "application/json", json.dumps(payload).encode("utf-8"), extra
+    if evidence and method == "GET":
+        parts = path.strip("/").split("/")
+        if len(parts) != 3 or parts[2] not in {"desktop.png", "mobile.png"}:
+            return 404, "application/json", b'{"error":"not_found"}', extra
+        slug = parts[1]
+        startup = startup_by_slug(conn, slug)
+        if startup is None or startup["owner_private"] or not slug.replace("-", "").isalnum():
+            return 404, "application/json", b'{"error":"not_found"}', extra
+        file_path = (root / "evidence" / slug / parts[2]).resolve()
+        if root.resolve() not in file_path.parents or not file_path.is_file():
+            return 404, "application/json", b'{"error":"not_found"}', extra
+        return 200, "image/png", file_path.read_bytes(), extra
+    if ui and method == "GET":
+        return 200, "text/html; charset=utf-8", render_page(conn, path, root).encode("utf-8"), extra
+    if method == "POST":
+        try:
+            body = json.loads(raw.decode("utf-8")) if raw else {}
+        except json.JSONDecodeError:
+            body = {}
+    else:
+        body = None
+    status, payload = dispatch(conn, method, path, headers, body, token)
+    return status, "application/json", json.dumps(payload).encode("utf-8"), extra
+
+
 def serve(conn: sqlite3.Connection, host: str, port: int, token: str) -> None:
+    import os
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+    root = Path(__file__).resolve().parents[1]
+    pid_path = root / "data" / "serve.pid"
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text(str(os.getpid()), encoding="utf-8")
+
     class Handler(BaseHTTPRequestHandler):
-        def _send(self, status: int, payload: dict) -> None:
-            raw = json.dumps(payload).encode("utf-8")
+        def _respond(self, status: int, content_type: str, body: bytes, extra: dict) -> None:
             self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(raw)))
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            for key, value in extra.items():
+                self.send_header(key, value)
             self.end_headers()
-            self.wfile.write(raw)
+            self.wfile.write(body)
+
+        def _go(self, method: str, raw: bytes = b"") -> None:
+            headers = {key.lower(): value for key, value in self.headers.items()}
+            status, content_type, body, extra = handle(conn, method, self.path.split("?")[0], headers, raw, token, root)
+            if method == "POST":
+                conn.commit()
+            self._respond(status, content_type, body, extra)
 
         def do_GET(self) -> None:  # noqa: N802
-            status, payload = dispatch(conn, "GET", self.path.split("?")[0], {k.lower(): v for k, v in self.headers.items()}, None, token)
-            self._send(status, payload)
+            self._go("GET")
 
         def do_POST(self) -> None:  # noqa: N802
             length = int(self.headers.get("Content-Length") or 0)
-            raw = self.rfile.read(length) if length else b"{}"
-            try:
-                body = json.loads(raw.decode("utf-8"))
-            except json.JSONDecodeError:
-                body = {}
-            status, payload = dispatch(conn, "POST", self.path.split("?")[0], {k.lower(): v for k, v in self.headers.items()}, body, token)
-            conn.commit()
-            self._send(status, payload)
+            self._go("POST", self.rfile.read(length) if length else b"")
 
         def log_message(self, fmt: str, *args) -> None:
             return

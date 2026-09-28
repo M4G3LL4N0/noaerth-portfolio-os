@@ -37,6 +37,18 @@ def control_plane_commit(root: Path | None = None) -> str:
         return "unknown"
 
 
+def daemon_is_fresh(path: Path, max_age: int = 600) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        body = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if body.get("status") != "running":
+        return False
+    return (time.time() - path.stat().st_mtime) < max_age
+
+
 def worker_plan() -> dict[str, int]:
     cpus = os.cpu_count() or 2
     try:

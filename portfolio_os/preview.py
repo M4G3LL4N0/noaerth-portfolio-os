@@ -141,7 +141,12 @@ class PreviewManager:
         startup = startup_by_slug(self.conn, slug)
         if startup is None or startup["owner_private"]:
             raise ExclusionError("excluded directory")
-        root = self.portfolio_root / slug
+        override = {
+            "noaerth-labs": self.portfolio_root / "noaerth-portfolio-os" / "worktrees" / "noaerth-labs",
+            "noaerth-team": self.portfolio_root / "noaerth-portfolio-os" / "worktrees" / "noaerth-team",
+            "autoerp": self.portfolio_root / "noaerth-portfolio-os" / "worktrees" / "autoerp-recovery",
+        }.get(slug)
+        root = override if override is not None and override.is_dir() else self.portfolio_root / slug
         assert_allowed(root, self.portfolio_root)
         return root
 

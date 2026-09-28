@@ -378,7 +378,22 @@ def build_parser() -> argparse.ArgumentParser:
     serve = sub.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8787)
+    serve.add_argument("--open", action="store_true")
     serve.set_defaults(func=cmd_serve)
+
+    up = sub.add_parser("up")
+    up.add_argument("--host", default="127.0.0.1")
+    up.add_argument("--port", type=int, default=8787)
+    up.set_defaults(func=cmd_up)
+
+    down = sub.add_parser("down")
+    down.add_argument("--all-previews", action="store_true")
+    down.set_defaults(func=cmd_down)
+
+    ui = sub.add_parser("ui")
+    ui.add_argument("--port", type=int, default=8787)
+    ui.add_argument("--open", action="store_true")
+    ui.set_defaults(func=cmd_ui)
 
     dossier = sub.add_parser("dossier")
     dossier.add_argument("slug")
@@ -445,17 +460,102 @@ def cmd_ecosystem(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_serve(args: argparse.Namespace) -> int:
+def _require_token() -> str | None:
     token = os.environ.get("PORTFOLIO_OS_API_TOKEN", "")
     if len(token) < 16:
         print("PORTFOLIO_OS_API_TOKEN is required and is not printed.")
+        return None
+    return token
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    token = _require_token()
+    if token is None:
         return 1
     if args.host not in {"127.0.0.1", "localhost"}:
         print("serve stays on localhost")
         return 1
     from portfolio_os.httpapi import serve
 
+    if getattr(args, "open", False):
+        import webbrowser
+
+        webbrowser.open(f"http://127.0.0.1:{args.port}")
+    print(f"Portfolio OS UI  http://127.0.0.1:{args.port}")
     serve(_conn(args), args.host, args.port, token)
+    return 0
+
+
+def cmd_up(args: argparse.Namespace) -> int:
+    import subprocess
+
+    from portfolio_os.daemon import daemon_is_fresh
+
+    token = _require_token()
+    if token is None:
+        return 1
+    if args.host not in {"127.0.0.1", "localhost"}:
+        print("serve stays on localhost")
+        return 1
+    beat = PACKAGE_ROOT / "data" / "daemon.heartbeat"
+    if daemon_is_fresh(beat):
+        print("daemon already healthy")
+    else:
+        subprocess.Popen(
+            [sys.executable, "-m", "portfolio_os", "daemon", "--interval", "120"],
+            cwd=PACKAGE_ROOT,
+            env={**os.environ, "PYTHONPATH": "."},
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        print("daemon started")
+    print(f"Portfolio OS UI  http://127.0.0.1:{args.port}")
+    print("Team             pnpm dev in the public-room worktree")
+    from portfolio_os.httpapi import serve
+
+    serve(_conn(args), args.host, args.port, token)
+    return 0
+
+
+def cmd_down(args: argparse.Namespace) -> int:
+    import signal
+
+    stop = PACKAGE_ROOT / "data" / "daemon.stop"
+    stop.parent.mkdir(parents=True, exist_ok=True)
+    stop.write_text("stop\n", encoding="utf-8")
+    pid_path = PACKAGE_ROOT / "data" / "serve.pid"
+    if pid_path.is_file():
+        try:
+            os.kill(int(pid_path.read_text(encoding="utf-8").strip()), signal.SIGTERM)
+        except (OSError, ValueError):
+            pass
+    if args.all_previews:
+        from portfolio_os.preview import PreviewManager
+
+        conn = _conn(args)
+        rows = conn.execute(
+            """
+            SELECT startups.slug FROM preview_runs
+            JOIN startups ON startups.id = preview_runs.startup_id
+            WHERE preview_runs.status = 'RUNNING' AND startups.owner_private = 0
+            """
+        ).fetchall()
+        manager = PreviewManager(conn, Path(args.root))
+        for row in rows:
+            manager.stop(row["slug"])
+        conn.commit()
+    print("stop requested for the daemon and the UI server")
+    return 0
+
+
+def cmd_ui(args: argparse.Namespace) -> int:
+    url = f"http://127.0.0.1:{args.port}"
+    print(url)
+    if args.open:
+        import webbrowser
+
+        webbrowser.open(url)
     return 0
 
 
