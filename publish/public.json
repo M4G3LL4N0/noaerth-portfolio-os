@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-28T03:08:18+00:00",
+  "generated_at": "2026-09-28T03:10:57+00:00",
   "pulse": {
     "public_projects": 130,
-    "in_review": 128,
+    "in_review": 126,
     "public_notes": 2
   },
   "now_building": [
@@ -19,12 +19,12 @@
     {
       "startup": "agentapi-hub",
       "name": "AgentAPI",
-      "public_status": "In review"
+      "public_status": "Release queued"
     },
     {
       "startup": "autobuilder",
       "name": "autobuilder",
-      "public_status": "In review"
+      "public_status": "Release queued"
     },
     {
       "startup": "autoerp",
@@ -94,7 +94,7 @@
     {
       "slug": "agentapi-hub",
       "name": "AgentAPI",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -129,7 +129,7 @@
     {
       "slug": "autobuilder",
       "name": "autobuilder",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
