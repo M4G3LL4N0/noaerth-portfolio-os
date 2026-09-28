@@ -10,6 +10,7 @@ from urllib.parse import parse_qs
 
 from portfolio_os.engine import add_event, ensure_work, startup_by_slug
 from portfolio_os.publish import build_public_snapshot
+from portfolio_os.localauth import consume_bootstrap, loopback
 from portfolio_os.ui import login_page, page as render_page
 
 ALLOWED_ACTIONS = frozenset(
@@ -250,9 +251,27 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
     return 200, {"ok": True, "action": action, "slug": slug}
 
 
-def handle(conn: sqlite3.Connection, method: str, path: str, headers: dict, raw: bytes, token: str, root: Path) -> tuple[int, str, bytes, dict]:
+def handle(
+    conn: sqlite3.Connection,
+    method: str,
+    path: str,
+    headers: dict,
+    raw: bytes,
+    token: str,
+    root: Path,
+    client_host: str = "127.0.0.1",
+) -> tuple[int, str, bytes, dict]:
     """Return status, content type, body, and extra headers."""
     extra: dict[str, str] = {}
+    if path.startswith("/bootstrap/") and method == "GET":
+        if not loopback(client_host):
+            return 404, "text/plain", b"not found", extra
+        nonce = path.removeprefix("/bootstrap/")
+        if not consume_bootstrap(root, nonce):
+            return 404, "text/plain", b"bootstrap expired", extra
+        extra["Set-Cookie"] = "portfolio_os_session=" + token + "; HttpOnly; SameSite=Strict; Path=/"
+        extra["Location"] = "/"
+        return 302, "text/plain", b"", extra
     if path == "/login" and method == "GET":
         return 200, "text/html; charset=utf-8", login_page().encode("utf-8"), extra
     if path == "/login" and method == "POST":
@@ -318,7 +337,10 @@ def serve(conn: sqlite3.Connection, host: str, port: int, token: str) -> None:
 
         def _go(self, method: str, raw: bytes = b"") -> None:
             headers = {key.lower(): value for key, value in self.headers.items()}
-            status, content_type, body, extra = handle(conn, method, self.path.split("?")[0], headers, raw, token, root)
+            client_host = self.client_address[0] if self.client_address else ""
+            status, content_type, body, extra = handle(
+                conn, method, self.path.split("?")[0], headers, raw, token, root, client_host
+            )
             if method == "POST":
                 conn.commit()
             self._respond(status, content_type, body, extra)

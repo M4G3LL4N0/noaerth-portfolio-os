@@ -3,6 +3,8 @@ __pycache__/
 .pytest_cache/
 data/*.db
 data/*.db-*
+data/local-credential
+data/bootstrap-nonce
 publish/team.json
 .venv/
 evidence/

@@ -384,7 +384,11 @@ def build_parser() -> argparse.ArgumentParser:
     up = sub.add_parser("up")
     up.add_argument("--host", default="127.0.0.1")
     up.add_argument("--port", type=int, default=8787)
+    up.add_argument("--open", action="store_true")
     up.set_defaults(func=cmd_up)
+
+    team = sub.add_parser("team")
+    team.set_defaults(func=cmd_team)
 
     down = sub.add_parser("down")
     down.add_argument("--all-previews", action="store_true")
@@ -460,28 +464,71 @@ def cmd_ecosystem(args: argparse.Namespace) -> int:
     return 0
 
 
-def _require_token() -> str | None:
-    token = os.environ.get("PORTFOLIO_OS_API_TOKEN", "")
-    if len(token) < 16:
-        print("PORTFOLIO_OS_API_TOKEN is required and is not printed.")
-        return None
+def _local_token(host: str) -> str | None:
+    from portfolio_os.localauth import resolve_token
+
+    token = resolve_token(PACKAGE_ROOT, host)
+    if token is None:
+        print("A token is required off loopback, and it is not printed.")
     return token
 
 
+def _port_open(port: int) -> bool:
+    import socket
+
+    probe = socket.socket()
+    probe.settimeout(0.3)
+    try:
+        probe.connect(("127.0.0.1", port))
+        return True
+    except OSError:
+        return False
+    finally:
+        probe.close()
+
+
+def _print_running(port: int) -> None:
+    from portfolio_os.daemon import daemon_is_fresh
+
+    beat_path = PACKAGE_ROOT / "data" / "daemon.heartbeat"
+    lanes = {"mutation": "?", "reviewer": "?"}
+    if beat_path.is_file():
+        try:
+            body = json.loads(beat_path.read_text(encoding="utf-8"))
+            lanes = body.get("lanes") or lanes
+        except json.JSONDecodeError:
+            pass
+    daemon = "healthy" if daemon_is_fresh(beat_path) else "starting"
+    print("Portfolio OS")
+    print("Running")
+    print()
+    print(f"UI: http://127.0.0.1:{port}")
+    print(f"Daemon: {daemon}")
+    print("Model: grok-4.7")
+    print(f"Workers: {lanes.get('mutation', '?')} mutation / {lanes.get('reviewer', '?')} reviewer")
+
+
+def _open_bootstrap(port: int) -> None:
+    import webbrowser
+
+    from portfolio_os.localauth import issue_bootstrap
+
+    nonce = issue_bootstrap(PACKAGE_ROOT)
+    webbrowser.open(f"http://127.0.0.1:{port}/bootstrap/{nonce}")
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
-    token = _require_token()
-    if token is None:
-        return 1
     if args.host not in {"127.0.0.1", "localhost"}:
         print("serve stays on localhost")
+        return 1
+    token = _local_token(args.host)
+    if token is None:
         return 1
     from portfolio_os.httpapi import serve
 
     if getattr(args, "open", False):
-        import webbrowser
-
-        webbrowser.open(f"http://127.0.0.1:{args.port}")
-    print(f"Portfolio OS UI  http://127.0.0.1:{args.port}")
+        _open_bootstrap(args.port)
+    _print_running(args.port)
     serve(_conn(args), args.host, args.port, token)
     return 0
 
@@ -491,16 +538,19 @@ def cmd_up(args: argparse.Namespace) -> int:
 
     from portfolio_os.daemon import daemon_is_fresh
 
-    token = _require_token()
-    if token is None:
-        return 1
     if args.host not in {"127.0.0.1", "localhost"}:
         print("serve stays on localhost")
         return 1
+    token = _local_token(args.host)
+    if token is None:
+        return 1
     beat = PACKAGE_ROOT / "data" / "daemon.heartbeat"
     if daemon_is_fresh(beat):
-        print("daemon already healthy")
+        pass
     else:
+        stop = PACKAGE_ROOT / "data" / "daemon.stop"
+        if stop.exists():
+            stop.unlink()
         subprocess.Popen(
             [sys.executable, "-m", "portfolio_os", "daemon", "--interval", "120"],
             cwd=PACKAGE_ROOT,
@@ -509,12 +559,25 @@ def cmd_up(args: argparse.Namespace) -> int:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        print("daemon started")
-    print(f"Portfolio OS UI  http://127.0.0.1:{args.port}")
-    print("Team             pnpm dev in the public-room worktree")
+    if _port_open(args.port):
+        _print_running(args.port)
+        if args.open:
+            _open_bootstrap(args.port)
+        return 0
+    _print_running(args.port)
+    if args.open:
+        _open_bootstrap(args.port)
     from portfolio_os.httpapi import serve
 
     serve(_conn(args), args.host, args.port, token)
+    return 0
+
+
+def cmd_team(_args: argparse.Namespace) -> int:
+    root = DEFAULT_PORTFOLIO / "noaerth-team"
+    print(f"Team checkout  {root}")
+    print("Start with     pnpm dev")
+    print("URL            http://127.0.0.1:4320")
     return 0
 
 

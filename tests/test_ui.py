@@ -4,6 +4,7 @@ from pathlib import Path
 
 from portfolio_os.db import connect
 from portfolio_os.httpapi import handle
+from portfolio_os.localauth import consume_bootstrap, issue_bootstrap, resolve_token
 
 
 class UiTests(unittest.TestCase):
@@ -73,3 +74,24 @@ class UiTests(unittest.TestCase):
         )
         self.assertEqual(status, 404)
         self.assertNotIn(b"hidden-matter", body)
+
+    def test_bootstrap_is_single_use_and_loopback_only(self) -> None:
+        os_root = Path(tempfile.mkdtemp())
+        (os_root / "data").mkdir()
+        nonce = issue_bootstrap(os_root)
+        status, _, _, extra = handle(
+            self.conn, "GET", f"/bootstrap/{nonce}", {}, b"", self.token, os_root, "10.0.0.8"
+        )
+        self.assertEqual(status, 404)
+        status, _, _, extra = handle(
+            self.conn, "GET", f"/bootstrap/{nonce}", {}, b"", self.token, os_root, "127.0.0.1"
+        )
+        self.assertEqual(status, 302)
+        self.assertIn("portfolio_os_session=", extra["Set-Cookie"])
+        self.assertNotIn(nonce, extra["Set-Cookie"])
+        again, _, _, _ = handle(
+            self.conn, "GET", f"/bootstrap/{nonce}", {}, b"", self.token, os_root, "127.0.0.1"
+        )
+        self.assertEqual(again, 404)
+        self.assertIsNotNone(resolve_token(os_root, "127.0.0.1"))
+        self.assertIsNone(resolve_token(os_root, "10.0.0.8"))
