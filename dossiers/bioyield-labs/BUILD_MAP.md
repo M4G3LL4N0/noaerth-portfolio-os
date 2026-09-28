@@ -2,7 +2,19 @@
 
 Derived from the repository. Not a guessed architecture.
 
-## Homepage
+## Canonical entrypoint
+`app/page.tsx`
+
+Next prefers ./app over ./src/app.
+
+
+
+## Dead or superseded paths
+- none detected
+
+These are not deleted. They are marked so the next pass does not treat them as the product.
+
+## Homepage evidence
 `app/page.tsx`
 
 ## Routes

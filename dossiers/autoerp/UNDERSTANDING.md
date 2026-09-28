@@ -10,7 +10,7 @@ Operators sketching an ERP rollout before buying a large system.
 ERP sprawl multiplies a bottleneck that was never mapped.
 
 ## What exists
-A homepage with six planner inputs and an operating-map illustration. A responsive nav fix exists on branch portfolio/autoerp/228.
+The published repository is the homepage. It shows six planner inputs and a labeled sample map. Planner, dashboard, and pricing routes exist only in an uncommitted index, so the page no longer links to them.
 
 ## Distinctive
 It shows the planner inputs instead of a generic ERP feature grid.

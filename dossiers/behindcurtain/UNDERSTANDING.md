@@ -10,10 +10,10 @@ Readers who want a source-aware profile directory rather than an unsourced feed.
 Public claims are hard to separate from allegations, and search on the homepage is not live.
 
 ## What exists
-A profile directory, a disabled search field, and a verification method that is descriptive.
+Published homepage is src/app/page.tsx. app/page.tsx on disk re-exports it and is not in git. Search on the homepage is off. The explorer filters a seeded sample directory.
 
 ## Distinctive
-The site now says the checks are a method, not a live count of sources.
+The site says the checks are a method, and the homepage no longer calls the sample directory verified.
 
 ## Maturity
 Prototype

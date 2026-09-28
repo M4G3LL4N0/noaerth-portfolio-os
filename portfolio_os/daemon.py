@@ -2,12 +2,34 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
+import subprocess
 import time
 from pathlib import Path
 
+from portfolio_os.dossier import SCHEMA_VERSION
 from portfolio_os.execute import execute_batch
 from portfolio_os.publish import write_report, write_snapshots
+
+
+def control_plane_commit(root: Path | None = None) -> str:
+    package = root or Path(__file__).resolve().parents[1]
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=package,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def heartbeat_body(root: Path | None = None) -> str:
+    return json.dumps(
+        {"status": "running", "commit": control_plane_commit(root), "schema": SCHEMA_VERSION}
+    )
 
 
 def run_daemon(
@@ -26,7 +48,7 @@ def run_daemon(
             return "stopped"
         beat = Path(__file__).resolve().parents[1] / "data" / "daemon.heartbeat"
         beat.parent.mkdir(parents=True, exist_ok=True)
-        beat.write_text("running\n", encoding="utf-8")
+        beat.write_text(heartbeat_body() + "\n", encoding="utf-8")
         if max_cycles is not None and cycles >= max_cycles:
             return "idle"
         execute_batch(conn, portfolio_root, 1, evidence_root)

@@ -1,7 +1,7 @@
 # Roadmap: autoerp
 
 ## Now
-- Keep MERGE_REVIEW_REQUIRED until the branch can land without the dirty index.
+- Leave portfolio/autoerp/228 unmerged until the published homepage imports SiteNav.
 
 ## Later
 - Show a worked planner result only after the merge is safe.

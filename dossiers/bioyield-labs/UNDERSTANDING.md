@@ -10,7 +10,7 @@ Readers who need the research direction without a procedure.
 A biology concept site can slide into operational instructions. This one is required not to.
 
 ## What exists
-A research page, a field illustration, public-versus-closed cards, and an explicit withholding of protocols.
+A research page with a reading order: public boundary, questions, posture, research desk. No procedure is published.
 
 ## Distinctive
 The page says what is absent as clearly as what is present.

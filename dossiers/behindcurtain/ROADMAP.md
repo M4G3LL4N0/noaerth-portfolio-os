@@ -1,7 +1,7 @@
 # Roadmap: behindcurtain
 
 ## Now
-- Decide which homepage tree Next should serve and retire the other.
+- Do not commit the untracked app/ tree unless every published src route is re-exported.
 
 ## Later
 - A live search only after the directory can support it.

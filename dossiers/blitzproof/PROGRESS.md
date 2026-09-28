@@ -1,5 +1,5 @@
 # Progress: blitzproof
 
-Updated 2026-09-28T19:07:02+00:00.
+Updated 2026-09-28T19:50:08+00:00.
 
-A homepage with five proof gates and a local demo scoreboard. Sample figures are labeled as samples.
+The published repository is the homepage. Five proof gates and labeled sample ideas are on that page. Dashboard and funnel routes are not in git, so the page does not link to them.

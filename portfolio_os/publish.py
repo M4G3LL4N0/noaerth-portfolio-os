@@ -127,6 +127,15 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
             """,
             (row["id"],),
         ).fetchall()
+        dossier = None
+        raw_facts = conn.execute("SELECT facts FROM dossiers WHERE startup_id = ?", (row["id"],)).fetchone()
+        if raw_facts:
+            try:
+                dossier = json.loads(raw_facts["facts"])
+            except json.JSONDecodeError:
+                dossier = None
+            if dossier and ("/Users/" in json.dumps(dossier) or "openlegal" in json.dumps(dossier).lower()):
+                dossier = None
         startups.append(
             {
                 "slug": row["slug"],
@@ -135,6 +144,7 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
                 "priority": row["priority"],
                 "website_url": row["website_url"],
                 "open_work": [dict(item) for item in open_work],
+                "dossier": dossier,
             }
         )
     queue = [
@@ -174,10 +184,26 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
     from pathlib import Path
     import time
 
+    from portfolio_os.daemon import control_plane_commit
+    from portfolio_os.dossier import SCHEMA_VERSION
+
     beat = Path(__file__).resolve().parents[1] / "data" / "daemon.heartbeat"
     daemon = "offline"
+    daemon_commit = None
+    daemon_schema = None
     if beat.is_file() and time.time() - beat.stat().st_mtime < 600:
-        daemon = "running"
+        raw = beat.read_text(encoding="utf-8").strip()
+        if raw.startswith("{"):
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError:
+                parsed = {}
+            daemon = parsed.get("status") or "running"
+            daemon_commit = parsed.get("commit")
+            daemon_schema = parsed.get("schema")
+        else:
+            daemon = "running"
+    control_commit = control_plane_commit()
     agents = [
         dict(row)
         for row in conn.execute(
@@ -194,8 +220,11 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
     ]
     payload = {
         "generated_at": utcnow(),
-        "schema": 1,
+        "schema": SCHEMA_VERSION,
         "daemon": daemon,
+        "daemon_commit": daemon_commit,
+        "daemon_schema": daemon_schema,
+        "control_plane": {"commit": control_commit, "schema": SCHEMA_VERSION},
         "agents": agents,
         "health": health_counts,
         "queue": queue,

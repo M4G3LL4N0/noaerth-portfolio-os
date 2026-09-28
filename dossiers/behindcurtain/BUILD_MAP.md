@@ -2,7 +2,19 @@
 
 Derived from the repository. Not a guessed architecture.
 
-## Homepage
+## Canonical entrypoint
+`src/app/page.tsx`
+
+app/page.tsx exists on disk but is not in git. Next on this disk prefers it. The published entrypoint is src/app/page.tsx. Do not commit app/ unless every published route is re-exported.
+
+app/page.tsx re-exports src/app/page.tsx
+
+## Dead or superseded paths
+- none detected
+
+These are not deleted. They are marked so the next pass does not treat them as the product.
+
+## Homepage evidence
 `src/app/page.tsx`
 
 ## Routes

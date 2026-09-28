@@ -1,5 +1,5 @@
 # Progress: bioyield-labs
 
-Updated 2026-09-28T19:07:02+00:00.
+Updated 2026-09-28T19:50:08+00:00.
 
-A research page, a field illustration, public-versus-closed cards, and an explicit withholding of protocols.
+A research page with a reading order: public boundary, questions, posture, research desk. No procedure is published.

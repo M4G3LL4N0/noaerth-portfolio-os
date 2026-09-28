@@ -7,7 +7,8 @@ from portfolio_os.db import connect
 from portfolio_os.engine import add_event
 from portfolio_os.exclusion import ExclusionError
 from portfolio_os.publish import build_public_snapshot
-from portfolio_os.dossier import render_dossier, write_dossier
+from portfolio_os.daemon import heartbeat_body
+from portfolio_os.dossier import classify_frontend, render_dossier, write_dossier
 from portfolio_os.httpapi import dispatch
 from portfolio_os.studio import (
     compiled_homepage,
@@ -156,6 +157,23 @@ class StudioTests(unittest.TestCase):
         self.assertNotIn("hidden", blob)
         docs = render_dossier("access-layer", {"homepage": "app/page.tsx", "heading": "Signed access", "routes": [], "tooling": {}}, None)
         self.assertIn("UNKNOWN", docs["UNDERSTANDING.md"])
+
+    def test_root_app_is_canonical_when_src_app_is_unreferenced(self) -> None:
+        root = Path(tempfile.mkdtemp())
+        (root / "app").mkdir()
+        (root / "app" / "page.tsx").write_text("<h1>Served page</h1>", encoding="utf-8")
+        (root / "src" / "app").mkdir(parents=True)
+        (root / "src" / "app" / "page.tsx").write_text("<h1>Old platform</h1>", encoding="utf-8")
+        found = classify_frontend(root)
+        self.assertEqual(found["canonical_entrypoint"], "app/page.tsx")
+        self.assertIn("src/app/page.tsx", found["dead_paths"])
+        docs = render_dossier("acme", {"homepage": "app/page.tsx", "heading": "Served page", "routes": [], "tooling": {}, "frontend": found}, None)
+        self.assertIn("BUILD_PLAN.md", docs)
+        self.assertIn("NO_SAFE_HIGH_VALUE_CHANGE", docs["BUILD_PLAN.md"])
+        self.assertIn("src/app/page.tsx", docs["BUILD_MAP.md"])
+        beat = heartbeat_body(root)
+        self.assertIn("schema", beat)
+        self.assertNotIn("/Users/", beat)
 
     def test_private_directory_is_not_a_studio_root(self) -> None:
         root = Path(tempfile.mkdtemp())

@@ -1,7 +1,7 @@
 # Roadmap: blitzproof
 
 ## Now
-- Confirm the dashboard still labels sample metrics before any public claim of results.
+- Do not link the published page at the uncommitted dashboard.
 
 ## Later
 - A second proof illustration only if it shows the scoring workflow.

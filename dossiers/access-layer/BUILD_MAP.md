@@ -2,7 +2,30 @@
 
 Derived from the repository. Not a guessed architecture.
 
-## Homepage
+## Canonical entrypoint
+`app/page.tsx`
+
+Next prefers ./app over ./src/app.
+
+
+
+## Dead or superseded paths
+- `src/app/account/page.tsx`
+- `src/app/admin/access-points/[venueId]/page.tsx`
+- `src/app/admin/access-points/page.tsx`
+- `src/app/admin/leads/page.tsx`
+- `src/app/admin/metrics/page.tsx`
+- `src/app/admin/ops/page.tsx`
+- `src/app/admin/page.tsx`
+- `src/app/admin/pilot-pack/page.tsx`
+- `src/app/admin/seed/page.tsx`
+- `src/app/admin/venues/[venueId]/page.tsx`
+- `src/app/admin/venues/page.tsx`
+- `src/app/analytics/page.tsx`
+
+These are not deleted. They are marked so the next pass does not treat them as the product.
+
+## Homepage evidence
 `app/page.tsx`
 
 ## Routes

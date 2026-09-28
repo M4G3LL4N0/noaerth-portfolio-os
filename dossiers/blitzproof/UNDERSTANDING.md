@@ -10,7 +10,7 @@ A single founder comparing ideas by clicks, leads, and recorded payments.
 Most startups are built before they are proven.
 
 ## What exists
-A homepage with five proof gates and a local demo scoreboard. Sample figures are labeled as samples.
+The published repository is the homepage. Five proof gates and labeled sample ideas are on that page. Dashboard and funnel routes are not in git, so the page does not link to them.
 
 ## Distinctive
 The scoreboard is the product, and the page says the numbers are samples.
@@ -22,7 +22,7 @@ Prototype
 Score a local demo idea by attention, interest, conversion, delivery, and revenue proof.
 
 ## Incomplete
-The dashboard is a local demo, not a live portfolio of customers.
+The published tree does not contain the dashboard or funnel routes that the old homepage linked.
 
 ## Opportunity
 Keep sample labels on any new scoreboard figure.

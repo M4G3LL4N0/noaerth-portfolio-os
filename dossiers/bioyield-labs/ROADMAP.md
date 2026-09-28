@@ -1,7 +1,7 @@
 # Roadmap: bioyield-labs
 
 ## Now
-- Leave the safe boundary in place.
+- Keep the reading order. Do not add a method, formulation, or application step.
 
 ## Later
 - Design identity work that does not add operational biology.

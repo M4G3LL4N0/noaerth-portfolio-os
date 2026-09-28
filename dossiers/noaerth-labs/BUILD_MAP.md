@@ -1,4 +1,4 @@
-# Build map: autoerp
+# Build map: noaerth-labs
 
 Derived from the repository. Not a guessed architecture.
 
@@ -18,32 +18,18 @@ These are not deleted. They are marked so the next pass does not treat them as t
 `app/page.tsx`
 
 ## Routes
-- `app/about/page.tsx`
-- `app/contact/page.tsx`
-- `app/dashboard/page.tsx`
-- `app/dashboard/runs/[id]/page.tsx`
-- `app/demo/page.tsx`
-- `app/docs/page.tsx`
-- `app/how-it-works/page.tsx`
-- `app/intake/page.tsx`
-- `app/investor/page.tsx`
+- `app/activity/page.tsx`
 - `app/page.tsx`
-- `app/planner/page.tsx`
-- `app/pricing/page.tsx`
-- `app/privacy/page.tsx`
-- `app/product/page.tsx`
-- `app/support/page.tsx`
-- `app/terms/page.tsx`
-- `app/trust/page.tsx`
+- `app/projects/[slug]/page.tsx`
+- `app/week/page.tsx`
 
 ## Commands
 - `dev`: `next dev`
 - `build`: `next build`
 - `start`: `next start`
-- `lint`: `eslint`
 
 ## Direct dependencies
-@prisma/client, next, react, react-dom, zod
+next, react, react-dom, react-server-dom-webpack, styled-jsx
 
 ```mermaid
 flowchart LR
