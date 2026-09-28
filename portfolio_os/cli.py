@@ -503,10 +503,10 @@ def cmd_provider(args: argparse.Namespace) -> int:
 
 def cmd_preview(args: argparse.Namespace) -> int:
     from portfolio_os.exclusion import ExclusionError
-    from portfolio_os.preview import PreviewManager
+    from portfolio_os.preview import PreviewManager, chrome_capture
 
     conn = _conn(args)
-    manager = PreviewManager(conn, Path(args.root))
+    manager = PreviewManager(conn, Path(args.root), capturer=chrome_capture)
     try:
         result = manager.stop(args.slug) if args.stop else manager.start(args.slug)
     except ExclusionError:

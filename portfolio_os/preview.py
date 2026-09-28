@@ -64,6 +64,30 @@ def dev_argv(profile: dict, port: int) -> list[str]:
     return [manager, "dev", *flags]
 
 
+def chrome_capture(slug: str, url: str) -> dict:
+    shot = Path("/Users/matador/startups/.redteam-evidence/shot.mjs")
+    if not shot.is_file() or not url.startswith("http://127.0.0.1:"):
+        return {}
+    dest = Path(__file__).resolve().parents[1] / "evidence" / slug
+    dest.mkdir(parents=True, exist_ok=True)
+    saved = {}
+    for viewport, name, width, height in (
+        ("desktop", "desktop.png", "1440", "1000"),
+        ("mobile", "mobile.png", "390", "844"),
+    ):
+        target = dest / name
+        subprocess.run(
+            ["node", str(shot), url, str(target), width, height],
+            check=False,
+            timeout=90,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if target.is_file():
+            saved[viewport] = name
+    return saved
+
+
 def screenshot_matches(record: dict, commit: str) -> bool:
     return bool(commit) and record.get("commit") == commit
 
@@ -175,7 +199,7 @@ class PreviewManager:
         startup = startup_by_slug(self.conn, slug)
         if startup is None or startup["owner_private"] or self.capturer is None:
             return {}
-        shots = self.capturer(url)
+        shots = self.capturer(slug, url)
         saved = {}
         for viewport, file_name in shots.items():
             if not file_name:
