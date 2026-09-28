@@ -108,6 +108,31 @@ class StudioTests(unittest.TestCase):
             "x" * 16,
         )
         self.assertEqual(status, 400)
+        for action in ("resume", "create_task", "reject_review", "accept_review", "reopen", "trigger_review"):
+            status, _body = dispatch(
+                conn,
+                "POST",
+                "/api/v1/actions",
+                {"authorization": "Bearer " + ("x" * 16)},
+                {"action": action, "slug": "acme", "title": "bounded"},
+                "x" * 16,
+            )
+            self.assertEqual(status, 200, action)
+        status, view = dispatch(conn, "GET", "/public/v1/activity", {}, None, "")
+        self.assertEqual(status, 200)
+        self.assertNotIn("team_action", json.dumps(view))
+        conn.execute(
+            "INSERT INTO startups (slug, name, is_public, owner_private) VALUES ('hidden', 'Hidden', 0, 1)"
+        )
+        status, _body = dispatch(
+            conn,
+            "POST",
+            "/api/v1/actions",
+            {"authorization": "Bearer " + ("x" * 16)},
+            {"action": "pause", "slug": "hidden"},
+            "x" * 16,
+        )
+        self.assertEqual(status, 404)
 
     def test_private_directory_is_not_a_studio_root(self) -> None:
         root = Path(tempfile.mkdtemp())

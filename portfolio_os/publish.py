@@ -171,8 +171,32 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
             """
         ).fetchall()
     ]
+    from pathlib import Path
+    import time
+
+    beat = Path(__file__).resolve().parents[1] / "data" / "daemon.heartbeat"
+    daemon = "offline"
+    if beat.is_file() and time.time() - beat.stat().st_mtime < 600:
+        daemon = "running"
+    agents = [
+        dict(row)
+        for row in conn.execute(
+            """
+            SELECT agent_runs.role, agent_runs.status, agent_runs.result_summary,
+                   agent_runs.started_at, startups.slug
+            FROM agent_runs
+            LEFT JOIN work_items ON work_items.id = agent_runs.work_item_id
+            LEFT JOIN startups ON startups.id = work_items.startup_id
+            ORDER BY agent_runs.id DESC
+            LIMIT 24
+            """
+        ).fetchall()
+    ]
     payload = {
         "generated_at": utcnow(),
+        "schema": 1,
+        "daemon": daemon,
+        "agents": agents,
         "health": health_counts,
         "queue": queue,
         "startups": startups,

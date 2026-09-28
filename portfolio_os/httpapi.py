@@ -5,20 +5,50 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from portfolio_os.engine import ensure_work, startup_by_slug
+from portfolio_os.engine import add_event, ensure_work, startup_by_slug
 from portfolio_os.publish import build_public_snapshot
 
-ALLOWED_ACTIONS = frozenset({"create_task", "pause", "resume", "priority", "reject_review"})
+ALLOWED_ACTIONS = frozenset(
+    {
+        "create_task",
+        "pause",
+        "resume",
+        "priority",
+        "reject_review",
+        "accept_review",
+        "reopen",
+        "trigger_review",
+    }
+)
+SCHEMA_VERSION = 1
+
+
+def _public_view(conn: sqlite3.Connection, kind: str) -> dict:
+    snapshot = build_public_snapshot(conn)
+    snapshot["schema"] = SCHEMA_VERSION
+    if kind == "activity":
+        return {"schema": SCHEMA_VERSION, "activity": snapshot.get("activity", [])}
+    if kind == "week":
+        return {"schema": SCHEMA_VERSION, "built_this_week": snapshot.get("built_this_week", [])}
+    if kind == "projects":
+        return {"schema": SCHEMA_VERSION, "startups": snapshot.get("startups", [])}
+    return snapshot
 
 
 def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, body: dict | None, token: str) -> tuple[int, dict]:
-    if path == "/public/v1/snapshot" and method == "GET":
-        return 200, build_public_snapshot(conn)
+    public_routes = {
+        "/public/v1/snapshot": "snapshot",
+        "/public/v1/activity": "activity",
+        "/public/v1/week": "week",
+        "/public/v1/projects": "projects",
+    }
+    if path in public_routes and method == "GET":
+        return 200, _public_view(conn, public_routes[path])
     presented = headers.get("authorization", "")
     if not token or presented != f"Bearer {token}":
         return 401, {"error": "unauthorized"}
     if path == "/api/v1/health" and method == "GET":
-        return 200, {"ok": True}
+        return 200, {"ok": True, "schema": SCHEMA_VERSION}
     if path != "/api/v1/actions" or method != "POST":
         return 404, {"error": "not_found"}
     payload = body or {}
@@ -54,6 +84,51 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
             priority=80,
             description=str(payload.get("finding") or "")[:500],
         )
+    elif action == "accept_review":
+        ensure_work(
+            conn,
+            startup["id"],
+            type_="design_quality",
+            title="Team accepted the current public design",
+            role="VISUAL_REVIEWER",
+            priority=40,
+            description="Accepted from Noaerth Team. The reviewer still records the pass.",
+        )
+    elif action == "reopen":
+        conn.execute("UPDATE startups SET health = 'REVIEW_REQUIRED' WHERE id = ?", (startup["id"],))
+        ensure_work(
+            conn,
+            startup["id"],
+            type_="venture_now",
+            title=str(payload.get("title") or "Reopened from Team")[:180],
+            role="PORTFOLIO_DIRECTOR",
+            priority=84,
+        )
+    elif action == "trigger_review":
+        ensure_work(
+            conn,
+            startup["id"],
+            type_="visual_qa_desktop",
+            title="Team requested a visual review",
+            role="VISUAL_REVIEWER",
+            priority=82,
+        )
+        ensure_work(
+            conn,
+            startup["id"],
+            type_="visual_qa_mobile",
+            title="Team requested a phone visual review",
+            role="VISUAL_REVIEWER",
+            priority=82,
+        )
+    add_event(
+        conn,
+        actor="NOAERTH_TEAM",
+        event_type="team_action",
+        summary=f"{action} on {slug}",
+        visibility="TEAM",
+        startup_id=startup["id"],
+    )
     return 200, {"ok": True, "action": action, "slug": slug}
 
 

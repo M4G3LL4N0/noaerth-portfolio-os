@@ -24,6 +24,9 @@ def run_daemon(
     while True:
         if stop_file is not None and stop_file.exists():
             return "stopped"
+        beat = Path(__file__).resolve().parents[1] / "data" / "daemon.heartbeat"
+        beat.parent.mkdir(parents=True, exist_ok=True)
+        beat.write_text("running\n", encoding="utf-8")
         if max_cycles is not None and cycles >= max_cycles:
             return "idle"
         execute_batch(conn, portfolio_root, 1, evidence_root)
