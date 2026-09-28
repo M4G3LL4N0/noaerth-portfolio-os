@@ -10,7 +10,7 @@ from portfolio_os.publish import build_public_snapshot
 from portfolio_os.daemon import heartbeat_body
 from portfolio_os.dossier import classify_frontend, render_dossier, write_dossier
 from portfolio_os.reconcile import allow_product_state, classify_workspace_path
-from portfolio_os.squads import REASONING_MODEL, assign_shards
+from portfolio_os.squads import REASONING_MODEL, assess_public_story, assign_shards
 from portfolio_os.httpapi import dispatch
 from portfolio_os.studio import (
     compiled_homepage,
@@ -181,6 +181,11 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(len(shards), 15)
         self.assertEqual(shards["a"], "SHARD-01")
         self.assertEqual(len(set(shards.values())), 2)
+        self.assertEqual(
+            assess_public_story("There is no store. There is no checkout. Not a live network."),
+            "TOO_DEFENSIVE",
+        )
+        self.assertEqual(assess_public_story("Discover Bourgaeux. A new digital home for taste."), "PASS")
 
     def test_workspace_classification_ignores_artifacts_and_does_not_invent_a_working_flow(self) -> None:
         self.assertEqual(classify_workspace_path("node_modules/next/package.json"), "DEPENDENCY_ARTIFACT")

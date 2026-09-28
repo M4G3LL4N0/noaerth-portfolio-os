@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import subprocess
 import time
@@ -36,7 +37,18 @@ def control_plane_commit(root: Path | None = None) -> str:
         return "unknown"
 
 
+def worker_plan() -> dict[str, int]:
+    cpus = os.cpu_count() or 2
+    try:
+        load = os.getloadavg()[0]
+    except OSError:
+        load = 0
+    mutation = 1 if load > cpus else 2
+    return {"mutation": mutation, "reviewer": 1}
+
+
 def heartbeat_body(root: Path | None = None) -> str:
+    lanes = worker_plan()
     return json.dumps(
         {
             "status": "running",
@@ -44,7 +56,8 @@ def heartbeat_body(root: Path | None = None) -> str:
             "head": control_plane_commit(root),
             "schema": SCHEMA_VERSION,
             "model": REASONING_MODEL,
-            "workers": 1,
+            "workers": lanes["mutation"] + lanes["reviewer"],
+            "lanes": lanes,
         }
     )
 
@@ -68,7 +81,7 @@ def run_daemon(
         beat.write_text(heartbeat_body() + "\n", encoding="utf-8")
         if max_cycles is not None and cycles >= max_cycles:
             return "idle"
-        execute_batch(conn, portfolio_root, 1, evidence_root)
+        execute_batch(conn, portfolio_root, worker_plan()["mutation"], evidence_root)
         if publish_dir is not None:
             write_report(conn, "daily")
             write_snapshots(conn, publish_dir)

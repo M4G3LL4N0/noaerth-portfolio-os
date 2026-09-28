@@ -193,6 +193,7 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
     daemon_schema = None
     daemon_model = None
     daemon_workers = None
+    daemon_lanes = None
     if beat.is_file() and time.time() - beat.stat().st_mtime < 600:
         raw = beat.read_text(encoding="utf-8").strip()
         if raw.startswith("{"):
@@ -205,6 +206,7 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
             daemon_schema = parsed.get("schema")
             daemon_model = parsed.get("model")
             daemon_workers = parsed.get("workers")
+            daemon_lanes = parsed.get("lanes")
         else:
             daemon = "running"
     control_commit = control_plane_commit()
@@ -230,6 +232,7 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
         "daemon_schema": daemon_schema,
         "model": daemon_model,
         "workers": daemon_workers,
+        "lanes": daemon_lanes,
         "coverage": {
             "public_startups": conn.execute(
                 "SELECT COUNT(*) AS n FROM startups WHERE is_public = 1 AND owner_private = 0"
