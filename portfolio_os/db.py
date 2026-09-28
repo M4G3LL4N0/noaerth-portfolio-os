@@ -145,7 +145,7 @@ def _ensure_column(conn: sqlite3.Connection, table: str, column: str, ddl: str) 
 
 def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     _ensure_column(conn, "startups", "paused", "paused INTEGER NOT NULL DEFAULT 0")
