@@ -132,6 +132,24 @@ def historical_compare(root: Path) -> dict:
     }
 
 
+def assess_design(root: Path) -> tuple[str, str]:
+    """Design quality is separate from 'it rendered'. Fail closed toward review."""
+    page = _homepage(root)
+    if page is None:
+        return "fail", "No homepage to review."
+    text = page.read_text(encoding="utf-8", errors="replace")
+    history = historical_compare(root)
+    if history.get("richer_history"):
+        return "fail", "An earlier homepage is substantially richer than the current page."
+    visual = any(token in text for token in ("<svg", "<table", "GovernanceMap", "boardRows", "sampleIdeas"))
+    sections = text.count("<section") + text.count("<article")
+    if page.stat().st_size < 2200 and not visual:
+        return "fail", "Homepage is short and has no product visual."
+    if sections < 2 and not visual:
+        return "fail", "Homepage does not show a product-specific structure."
+    return "pass", "Homepage has product-specific structure and no recorded historical regression."
+
+
 def judge_render(metrics: dict | None, text: str) -> tuple[str, str]:
     if not metrics:
         return "fail", "Render did not return page metrics."
@@ -373,12 +391,42 @@ def execute_startup(
             )
             build = {"ran": True, "exit": built.returncode}
         _run_row(conn, startup["id"], "QA_ENGINEER", work_id, json.dumps(build), build, "completed", [], "")
+        design_resolution, design_finding = assess_design(root)
+        design_item = ensure_work(
+            conn,
+            startup["id"],
+            type_="design_quality",
+            title="Design quality review",
+            role="VISUAL_REVIEWER",
+        )
+        record_review(
+            conn,
+            slug=slug,
+            role="VISUAL_REVIEWER",
+            dimension="design_quality",
+            finding=design_finding,
+            severity="high" if design_resolution == "fail" else "low",
+            resolution=design_resolution,
+            work_item_id=design_item,
+        )
+        if design_resolution == "fail":
+            ensure_work(
+                conn,
+                startup["id"],
+                type_="recover_and_improve",
+                title="Recover and improve the public design",
+                role="DESIGNER",
+                priority=88,
+                description=design_finding,
+            )
         sha = None
         if block is None and changed:
             dirty = dirty_paths(git_status(root))
             sha = commit_owned(root, [root / rel for rel in changed], "Apply the scoped portfolio-os fix.", dirty)
         cap = provider_blocked(conn)
-        if cap and d_resolution == "pass" and m_resolution == "pass" and (not build["ran"] or build["exit"] == 0):
+        functional_ok = d_resolution == "pass" and m_resolution == "pass"
+        build_ok = not build["ran"] or build["exit"] == 0
+        if cap and functional_ok and design_resolution == "pass" and build_ok:
             block_release(conn, slug, cap)
         elif cap:
             add_event(
@@ -400,6 +448,9 @@ def execute_startup(
                 priority=90,
             )
             health = "BUILD_FAILING"
+        elif functional_ok and design_resolution == "fail":
+            conn.execute("UPDATE startups SET health = 'NEEDS_DESIGN' WHERE id = ?", (startup["id"],))
+            health = "NEEDS_DESIGN"
         else:
             health = recompute_health(conn, startup["id"])
         return {"outcome": health, "run_id": run_id, "desktop": d_resolution, "mobile": m_resolution, "commit": sha}

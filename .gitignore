@@ -6,3 +6,4 @@ data/*.db-*
 publish/team.json
 .venv/
 evidence/
+worktrees/

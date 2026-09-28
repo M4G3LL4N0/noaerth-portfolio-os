@@ -27,13 +27,17 @@ A startup is not finished because a page returns HTTP 200. `VISUAL_QA_PENDING` s
 
 `openlegal-data` is refused at directory discovery. The only stored record is `OWNER-PRIVATE`, with no path and no file contents. `PRIVATE_SYSTEM` events are excluded from public snapshots by an allowlist, not a cleanup pass.
 
-Autonomous `portfolio run` refreshes priority, writes a report, and publishes snapshots. It does not edit startup repositories, delete projects, or retry Vercel while a daily cap is recorded.
+Autonomous `portfolio run` refreshes priority, writes a report, and publishes snapshots. It does not delete projects or retry Vercel while a daily cap is recorded.
+
+A rendered page is not a design pass. Functional visual QA and design-quality review are separate. Release-ready requires both, plus a clean build when one was run. A richer earlier homepage fails the design review and opens recovery work.
+
+Dirty product repos are not edited in place. Isolated work uses `portfolio/<startup>/<work-item>` worktrees. If the main tree is dirty, the fix stays on that branch and the startup is marked for merge review.
 
 The role that implements a change cannot close that change by reviewing it. A failed review creates follow-up work.
 
 ## Execution
 
-`portfolio run --startup <slug>` locks that startup, reads its repo, renders the homepage, and records founder, engineering, visual, product, and QA results. It does not roam into other startups. A failed visual review creates follow-up work. The implementing role cannot approve its own change.
+`portfolio run --startup <slug>` locks that startup, reads its repo, renders the homepage, and records founder, engineering, functional visual, design-quality, product, and QA results. It does not roam into other startups. A failed visual review creates follow-up work. The implementing role cannot approve its own change.
 
 `portfolio daemon` repeats one startup per interval (default 120 seconds) and stops when `data/daemon.stop` exists.
 

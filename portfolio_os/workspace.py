@@ -103,3 +103,54 @@ def commit_owned(repo: Path, paths: list[Path], message: str, dirty_before: set[
         timeout=15,
     )
     return sha.stdout.strip()
+
+
+def create_worktree(repo: Path, branch: str, dest: Path) -> Path:
+    """Create a branch worktree from HEAD. Does not touch the dirty working tree."""
+    if dest.exists():
+        raise ScopeError(f"worktree path already exists: {dest.name}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "worktree", "add", "-b", branch, str(dest), "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return dest
+
+
+def commit_in_worktree(worktree: Path, paths: list[Path], message: str) -> str:
+    relative = [str(path.resolve().relative_to(worktree.resolve())) for path in paths]
+    subprocess.run(["git", "-C", str(worktree), "add", "--", *relative], check=True, timeout=30)
+    subprocess.run(
+        ["git", "-C", str(worktree), "commit", "-m", message, "--", *relative],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    sha = subprocess.run(
+        ["git", "-C", str(worktree), "rev-parse", "--short", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    return sha.stdout.strip()
+
+
+def merge_status(repo: Path, branch: str) -> str:
+    """Return clean, conflict, or blocked_dirty. Never checks out into a dirty tree."""
+    if git_status(repo):
+        return "blocked_dirty"
+    probe = subprocess.run(
+        ["git", "-C", str(repo), "merge-tree", "--write-tree", "HEAD", branch],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if probe.returncode != 0 or "CONFLICT" in (probe.stdout + probe.stderr):
+        return "conflict"
+    return "clean"
