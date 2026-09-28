@@ -21,6 +21,7 @@ portfolio down
 Team, from `~/startups/noaerth-team`:
 
 ```sh
+pnpm install --ignore-workspace
 pnpm dev
 ```
 
