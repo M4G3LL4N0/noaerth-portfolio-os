@@ -10,7 +10,7 @@ Operators sketching an ERP rollout before buying a large system.
 ERP sprawl multiplies a bottleneck that was never mapped.
 
 ## What exists
-The published repository is the homepage. It shows six planner inputs and a labeled sample map. Planner, dashboard, and pricing routes exist only in an uncommitted index, so the page no longer links to them.
+Main is still the homepage. Branch portfolio/autoerp/workspace-recovery runs the six-input operating-map model in the browser. Prisma and the rest of the dirty index stay off that branch.
 
 ## Distinctive
 It shows the planner inputs instead of a generic ERP feature grid.

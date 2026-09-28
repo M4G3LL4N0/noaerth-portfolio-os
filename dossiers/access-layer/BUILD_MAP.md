@@ -29,29 +29,14 @@ These are not deleted. They are marked so the next pass does not treat them as t
 `app/page.tsx`
 
 ## Routes
-- `app/about/page.tsx`
-- `app/blog/page.tsx`
-- `app/careers/page.tsx`
-- `app/compliance/page.tsx`
 - `app/customers/page.tsx`
-- `app/directory/page.tsx`
 - `app/docs/page.tsx`
-- `app/features/page.tsx`
 - `app/how-it-works/page.tsx`
-- `app/intake/page.tsx`
-- `app/investor/page.tsx`
-- `app/metrics/page.tsx`
 - `app/page.tsx`
-- `app/pilot-pack/page.tsx`
 - `app/privacy/page.tsx`
-- `app/product/page.tsx`
-- `app/roadmap/page.tsx`
-- `app/security/page.tsx`
 - `app/support/page.tsx`
 - `app/terms/page.tsx`
 - `app/trust/page.tsx`
-- `app/use-cases/page.tsx`
-- `app/verifier/page.tsx`
 - `src/app/account/page.tsx`
 - `src/app/admin/access-points/[venueId]/page.tsx`
 - `src/app/admin/access-points/page.tsx`
@@ -69,6 +54,21 @@ These are not deleted. They are marked so the next pass does not treat them as t
 - `src/app/case-studies/sf-pilot/page.tsx`
 - `src/app/checkout/page.tsx`
 - `src/app/claim/[venueId]/page.tsx`
+- `src/app/contact/page.tsx`
+- `src/app/crm/leads/page.tsx`
+- `src/app/crm/targets/page.tsx`
+- `src/app/crm/templates/page.tsx`
+- `src/app/dashboard/page.tsx`
+- `src/app/demo/page.tsx`
+- `src/app/developers/page.tsx`
+- `src/app/enterprise/page.tsx`
+- `src/app/government/page.tsx`
+- `src/app/hardware/page.tsx`
+- `src/app/health/page.tsx`
+- `src/app/home-v1/page.tsx`
+- `src/app/home-v2/page.tsx`
+- `src/app/investors/2t/page.tsx`
+- `src/app/investors/interactive/page.tsx`
 
 ## Commands
 - `dev`: `next dev`

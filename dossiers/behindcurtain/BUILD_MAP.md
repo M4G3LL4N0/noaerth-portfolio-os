@@ -3,9 +3,9 @@
 Derived from the repository. Not a guessed architecture.
 
 ## Canonical entrypoint
-`src/app/page.tsx`
+`app/page.tsx`
 
-app/page.tsx exists on disk but is not in git. Next on this disk prefers it. The published entrypoint is src/app/page.tsx. Do not commit app/ unless every published route is re-exported.
+Next prefers ./app over ./src/app.
 
 app/page.tsx re-exports src/app/page.tsx
 
@@ -18,22 +18,13 @@ These are not deleted. They are marked so the next pass does not treat them as t
 `src/app/page.tsx`
 
 ## Routes
-- `app/about/page.tsx`
 - `app/admin/page.tsx`
-- `app/contact/page.tsx`
-- `app/dashboard/page.tsx`
-- `app/demo/page.tsx`
 - `app/docs/page.tsx`
 - `app/explorer/page.tsx`
 - `app/how-it-works/page.tsx`
-- `app/intake/page.tsx`
-- `app/investor/page.tsx`
 - `app/page.tsx`
-- `app/pricing/page.tsx`
 - `app/privacy/page.tsx`
-- `app/product/page.tsx`
 - `app/profiles/[slug]/page.tsx`
-- `app/profiles/page.tsx`
 - `app/support/page.tsx`
 - `app/terms/page.tsx`
 - `app/trust/page.tsx`

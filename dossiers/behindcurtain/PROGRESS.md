@@ -1,5 +1,5 @@
 # Progress: behindcurtain
 
-Updated 2026-09-28T19:50:08+00:00.
+Updated 2026-09-28T20:08:14+00:00.
 
-Published homepage is src/app/page.tsx. app/page.tsx on disk re-exports it and is not in git. Search on the homepage is off. The explorer filters a seeded sample directory.
+Next serves the app/ directory. Homepage and layout re-export the src/app pages so the real directory is what visitors get. The explorer filters a seeded sample directory. Search on the homepage stays off.

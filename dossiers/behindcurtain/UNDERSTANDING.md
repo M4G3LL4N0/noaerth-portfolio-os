@@ -10,7 +10,7 @@ Readers who want a source-aware profile directory rather than an unsourced feed.
 Public claims are hard to separate from allegations, and search on the homepage is not live.
 
 ## What exists
-Published homepage is src/app/page.tsx. app/page.tsx on disk re-exports it and is not in git. Search on the homepage is off. The explorer filters a seeded sample directory.
+Next serves the app/ directory. Homepage and layout re-export the src/app pages so the real directory is what visitors get. The explorer filters a seeded sample directory. Search on the homepage stays off.
 
 ## Distinctive
 The site says the checks are a method, and the homepage no longer calls the sample directory verified.

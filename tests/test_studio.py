@@ -9,6 +9,7 @@ from portfolio_os.exclusion import ExclusionError
 from portfolio_os.publish import build_public_snapshot
 from portfolio_os.daemon import heartbeat_body
 from portfolio_os.dossier import classify_frontend, render_dossier, write_dossier
+from portfolio_os.reconcile import allow_product_state, classify_workspace_path
 from portfolio_os.httpapi import dispatch
 from portfolio_os.studio import (
     compiled_homepage,
@@ -174,6 +175,16 @@ class StudioTests(unittest.TestCase):
         beat = heartbeat_body(root)
         self.assertIn("schema", beat)
         self.assertNotIn("/Users/", beat)
+
+    def test_workspace_classification_ignores_artifacts_and_does_not_invent_a_working_flow(self) -> None:
+        self.assertEqual(classify_workspace_path("node_modules/next/package.json"), "DEPENDENCY_ARTIFACT")
+        self.assertEqual(classify_workspace_path(".autobuilder/project-state.json"), "GENERATED")
+        self.assertEqual(
+            classify_workspace_path("app/customers/page.tsx", "This page is live so navigation and portfolio links do not 404."),
+            "GENERATED",
+        )
+        self.assertEqual(allow_product_state("STATIC_DEMO", "WORKING_PRIMARY_WORKFLOW", evidence=False), "STATIC_DEMO")
+        self.assertEqual(allow_product_state("STATIC_DEMO", "INTERACTIVE_DEMO", evidence=True), "INTERACTIVE_DEMO")
 
     def test_private_directory_is_not_a_studio_root(self) -> None:
         root = Path(tempfile.mkdtemp())

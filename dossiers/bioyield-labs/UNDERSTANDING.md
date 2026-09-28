@@ -10,7 +10,7 @@ Readers who need the research direction without a procedure.
 A biology concept site can slide into operational instructions. This one is required not to.
 
 ## What exists
-A research page with a reading order: public boundary, questions, posture, research desk. No procedure is published.
+A research page with a reading order: public boundary, questions, posture, research desk. Each question is marked open. No procedure is published.
 
 ## Distinctive
 The page says what is absent as clearly as what is present.

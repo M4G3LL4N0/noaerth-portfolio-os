@@ -10,7 +10,7 @@ A single founder comparing ideas by clicks, leads, and recorded payments.
 Most startups are built before they are proven.
 
 ## What exists
-The published repository is the homepage. Five proof gates and labeled sample ideas are on that page. Dashboard and funnel routes are not in git, so the page does not link to them.
+The homepage runs the published scoring functions on numbers the visitor enters. The result is a sample score and stage, not a customer ledger.
 
 ## Distinctive
 The scoreboard is the product, and the page says the numbers are samples.
