@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-28T03:10:57+00:00",
+  "generated_at": "2026-09-28T03:48:55+00:00",
   "pulse": {
     "public_projects": 130,
     "in_review": 126,
@@ -14,7 +14,7 @@
     {
       "startup": "access-layer",
       "name": "AccessXWorld",
-      "public_status": "Release queued"
+      "public_status": "In design"
     },
     {
       "startup": "agentapi-hub",
@@ -87,7 +87,7 @@
     {
       "slug": "access-layer",
       "name": "AccessXWorld",
-      "public_status": "Release queued",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
