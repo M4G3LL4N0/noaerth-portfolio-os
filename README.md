@@ -31,6 +31,18 @@ Autonomous `portfolio run` refreshes priority, writes a report, and publishes sn
 
 The role that implements a change cannot close that change by reviewing it. A failed review creates follow-up work.
 
+## Execution
+
+`portfolio run --startup <slug>` locks that startup, reads its repo, renders the homepage, and records founder, engineering, visual, product, and QA results. It does not roam into other startups. A failed visual review creates follow-up work. The implementing role cannot approve its own change.
+
+`portfolio daemon` repeats one startup per interval (default 120 seconds) and stops when `data/daemon.stop` exists.
+
+Deployment attempts stay suppressed while a Vercel daily-cap blocker is on record. Design and review work still runs.
+
+## Team secret
+
+Set `NOAERTH_TEAM_SECRET` to a long random value in the server environment. Do not commit it. The login route compares a hash of the submitted password with a hash of that secret and sets an HTTP-only cookie. If the variable is missing, `/team` shows no internal data.
+
 ## CLI
 
 From this directory:

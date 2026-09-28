@@ -137,11 +137,20 @@ CREATE TABLE IF NOT EXISTS discovery_state (
 """
 
 
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, ddl: str) -> None:
+    present = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in present:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+
+
 def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _ensure_column(conn, "startups", "paused", "paused INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(conn, "locks", "work_item_id", "work_item_id INTEGER")
+    _ensure_column(conn, "locks", "run_id", "run_id TEXT")
     return conn
 
 

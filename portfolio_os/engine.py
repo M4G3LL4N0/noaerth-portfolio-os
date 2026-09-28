@@ -100,7 +100,14 @@ def startup_by_slug(conn: sqlite3.Connection, slug: str) -> sqlite3.Row | None:
     return conn.execute("SELECT * FROM startups WHERE slug = ?", (slug,)).fetchone()
 
 
-def claim_lock(conn: sqlite3.Connection, startup_id: int, holder: str, minutes: int = 60) -> None:
+def claim_lock(
+    conn: sqlite3.Connection,
+    startup_id: int,
+    holder: str,
+    minutes: int = 60,
+    work_item_id: int | None = None,
+    run_id: str | None = None,
+) -> None:
     now = datetime.now(timezone.utc)
     row = conn.execute("SELECT * FROM locks WHERE startup_id = ?", (startup_id,)).fetchone()
     if row is not None:
@@ -110,14 +117,16 @@ def claim_lock(conn: sqlite3.Connection, startup_id: int, holder: str, minutes: 
     expires_at = (now + timedelta(minutes=minutes)).replace(microsecond=0).isoformat()
     conn.execute(
         """
-        INSERT INTO locks (startup_id, holder, acquired_at, expires_at)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO locks (startup_id, holder, acquired_at, expires_at, work_item_id, run_id)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(startup_id) DO UPDATE SET
           holder = excluded.holder,
           acquired_at = excluded.acquired_at,
-          expires_at = excluded.expires_at
+          expires_at = excluded.expires_at,
+          work_item_id = excluded.work_item_id,
+          run_id = excluded.run_id
         """,
-        (startup_id, holder, now.replace(microsecond=0).isoformat(), expires_at),
+        (startup_id, holder, now.replace(microsecond=0).isoformat(), expires_at, work_item_id, run_id),
     )
 
 

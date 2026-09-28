@@ -211,33 +211,57 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    """Schedule and publish. Does not edit startup repositories."""
+    """Claim the next startups and run the role pipeline."""
+    from portfolio_os.execute import execute_batch, execute_startup
+
     conn = _conn(args)
+    evidence = PACKAGE_ROOT / "evidence"
+    if is_excluded_name(args.startup or ""):
+        print(OWNER_PRIVATE_LABEL)
+        return 0
     if args.startup:
-        if is_excluded_name(args.startup):
-            print(OWNER_PRIVATE_LABEL)
-            return 0
         row = startup_by_slug(conn, args.startup)
         if row is None or row["owner_private"]:
             print(OWNER_PRIVATE_LABEL if row and row["owner_private"] else "not found")
             return 1
-        claim_lock(conn, row["id"], "scheduler")
-        add_event(
-            conn,
-            actor="PORTFOLIO_DIRECTOR",
-            event_type="cycle_started",
-            summary=f"Scheduled the next review cycle for {row['slug']}.",
-            visibility="TEAM",
-            startup_id=row["id"],
-        )
-        release_lock(conn, row["id"], "scheduler")
+        result = execute_startup(conn, Path(args.root), args.startup, evidence)
+        print(json.dumps(result))
+    else:
+        limit = 1 if args.until_idle else args.batch
+        runs = 0
+        while True:
+            batch = execute_batch(conn, Path(args.root), limit, evidence)
+            print(json.dumps(batch))
+            runs += 1
+            if not args.until_idle or not batch or runs >= 20:
+                break
     refresh_priorities(conn)
     write_report(conn, "daily")
     write_snapshots(conn, PACKAGE_ROOT / "publish")
+    noaerth_public = DEFAULT_PORTFOLIO / "noaerth" / "data" / "portfolio-public.json"
+    public_path = PACKAGE_ROOT / "publish" / "public.json"
+    if noaerth_public.parent.is_dir() and public_path.is_file():
+        noaerth_public.write_text(public_path.read_text(encoding="utf-8"), encoding="utf-8")
     conn.commit()
-    print("cycle recorded. product repositories were not edited.")
-    args.limit = args.batch
-    return cmd_queue(args)
+    return 0
+
+
+def cmd_daemon(args: argparse.Namespace) -> int:
+    from portfolio_os.daemon import run_daemon
+
+    conn = _conn(args)
+    stop = Path(args.stop_file) if args.stop_file else PACKAGE_ROOT / "data" / "daemon.stop"
+    result = run_daemon(
+        conn,
+        Path(args.root),
+        PACKAGE_ROOT / "evidence",
+        interval=args.interval,
+        max_cycles=args.max_cycles,
+        stop_file=stop,
+        publish_dir=PACKAGE_ROOT / "publish",
+    )
+    print(result)
+    return 0
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -321,8 +345,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = sub.add_parser("run")
     run.add_argument("--startup", default=None)
-    run.add_argument("--batch", type=int, default=10)
+    run.add_argument("--batch", type=int, default=1)
+    run.add_argument("--until-idle", action="store_true")
     run.set_defaults(func=cmd_run)
+
+    daemon = sub.add_parser("daemon")
+    daemon.add_argument("--interval", type=int, default=120)
+    daemon.add_argument("--max-cycles", type=int, default=None)
+    daemon.add_argument("--stop-file", default=None)
+    daemon.set_defaults(func=cmd_daemon)
 
     doctor = sub.add_parser("doctor")
     doctor.set_defaults(func=cmd_doctor)
