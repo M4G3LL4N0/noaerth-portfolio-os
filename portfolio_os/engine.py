@@ -34,6 +34,12 @@ PUBLIC_EVENT_TYPES = frozenset(
         "public_launch",
         "public_design_update",
         "public_research_note",
+        "public_designing",
+        "public_building",
+        "public_testing",
+        "public_shipped",
+        "public_researching",
+        "public_experimenting",
     }
 )
 
@@ -189,10 +195,24 @@ def score_work(item: sqlite3.Row, startup: sqlite3.Row) -> tuple[int, dict]:
         factors["user_facing"] = 30
     elif item["type"] in {"product_review", "historical_review"}:
         factors["user_facing"] = 20
+    elif item["type"] == "venture_now":
+        factors["user_facing"] = 28
     elif item["type"] == "deploy_retry":
-        factors["user_facing"] = 5
+        factors["user_facing"] = 1
     else:
         factors["user_facing"] = 15
+    if startup["slug"] in {
+        "gh0st",
+        "agentos",
+        "grokinstall",
+        "grokmax",
+        "grokbot-office",
+        "grokbot-society",
+        "q-concierge",
+        "seai-mind",
+        "paios",
+    }:
+        factors["flagship"] = 8
     factors["public_visibility"] = 15 if startup["is_public"] else 0
     if startup["health"] == "VISUAL_QA_PENDING":
         factors["visual_regression_risk"] = 25
@@ -228,7 +248,14 @@ def refresh_priorities(conn: sqlite3.Connection) -> None:
         """
     ).fetchall()
     for row in rows:
+        improved = conn.execute(
+            "SELECT 1 FROM material_improvements WHERE startup_id = ? LIMIT 1",
+            (row["startup_id"],),
+        ).fetchone()
         total, factors = score_work(row, row)
+        if improved is None and row["slug"] != "portfolio-control":
+            factors["no_material_improvement"] = 18
+            total += 18
         conn.execute(
             "UPDATE work_items SET priority = ?, priority_factors = ? WHERE id = ?",
             (total, json.dumps(factors, sort_keys=True), row["id"]),

@@ -65,11 +65,9 @@ def _readme_excerpt(root: Path) -> str:
 
 
 def _homepage(root: Path) -> Path | None:
-    for relative in ("src/app/page.tsx", "app/page.tsx", "src/app/(marketing)/page.tsx", "public-site/index.html", "index.html"):
-        path = root / relative
-        if path.is_file():
-            return path
-    return None
+    from portfolio_os.studio import compiled_homepage
+
+    return compiled_homepage(root)
 
 
 def founder_brief(root: Path) -> dict:
@@ -290,6 +288,13 @@ def execute_startup(
     try:
         brief = founder_brief(root)
         _run_row(conn, startup["id"], "FOUNDER", work_id, brief["problem"][:180], brief, "completed", brief["files_inspected"], "")
+        from portfolio_os.studio import store_venture_review, venture_question
+
+        if not conn.execute(
+            "SELECT 1 FROM venture_reviews WHERE startup_id = ?",
+            (startup["id"],),
+        ).fetchone():
+            store_venture_review(conn, startup["id"], venture_question(root))
         history = historical_compare(root)
         block = mutation_block(root, slug)
         engineer = {"outcome": "inspected", "mutation": block or "allowed", "history": history}

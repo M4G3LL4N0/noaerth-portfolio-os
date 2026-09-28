@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -292,6 +293,19 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     team = json.dumps(build_team_snapshot(conn))
     if "openlegal" in team.lower() or "/Users/" in team:
         problems.append("team snapshot leaked")
+    secret = os.environ.get("NOAERTH_TEAM_SECRET", "")
+    local_env = Path(args.root) / "noaerth" / ".env.local"
+    if len(secret) >= 16:
+        print("TEAM AUTH: configured in this environment. Value not shown.")
+    elif local_env.is_file():
+        print("TEAM AUTH: local file present. Value not shown. Production still needs the variable.")
+    else:
+        print("TEAM AUTH: TEAM_AUTH_CONFIGURATION_REQUIRED")
+        print("Set NOAERTH_TEAM_SECRET in the server environment. Do not commit it. Length at least 16.")
+    worktrees = Path(__file__).resolve().parents[1] / "worktrees"
+    if worktrees.is_dir():
+        stale = [p.name for p in worktrees.iterdir() if p.is_dir()]
+        print(f"worktrees: {len(stale)}")
     if problems:
         print("\n".join(problems))
         return 1

@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 
 from portfolio_os.engine import public_events, public_text_allowed, utcnow
+from portfolio_os.studio import material_coverage
 
 PUBLIC_HEALTH = {
     "VISUAL_QA_PENDING": "In review",
@@ -89,6 +90,20 @@ def build_public_snapshot(conn: sqlite3.Connection) -> dict:
             }
         ],
         "activity": enriched,
+        "built_this_week": [
+            item
+            for item in enriched
+            if item["kind"]
+            in {
+                "public_designing",
+                "public_building",
+                "public_testing",
+                "public_shipped",
+                "public_design_update",
+                "public_researching",
+                "public_experimenting",
+            }
+        ][:8],
         "startups": startups,
     }
     encoded = json.dumps(payload)
@@ -163,6 +178,7 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
         "startups": startups,
         "activity": events,
         "reports": reports,
+        "material": material_coverage(conn),
         "deployment_blocked": [
             dict(row)
             for row in conn.execute(

@@ -151,6 +151,29 @@ def connect(path: Path) -> sqlite3.Connection:
     _ensure_column(conn, "startups", "paused", "paused INTEGER NOT NULL DEFAULT 0")
     _ensure_column(conn, "locks", "work_item_id", "work_item_id INTEGER")
     _ensure_column(conn, "locks", "run_id", "run_id TEXT")
+    _ensure_column(conn, "work_items", "priority_reason", "priority_reason TEXT")
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS material_improvements (
+          id INTEGER PRIMARY KEY,
+          startup_id INTEGER NOT NULL REFERENCES startups(id),
+          category TEXT NOT NULL,
+          work_item_id INTEGER,
+          summary TEXT NOT NULL,
+          commit_sha TEXT,
+          review_result TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS venture_reviews (
+          id INTEGER PRIMARY KEY,
+          startup_id INTEGER NOT NULL REFERENCES startups(id),
+          question TEXT NOT NULL,
+          now_tasks TEXT NOT NULL,
+          later TEXT,
+          created_at TEXT NOT NULL
+        );
+        """
+    )
     return conn
 
 

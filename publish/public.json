@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-28T03:48:55+00:00",
+  "generated_at": "2026-09-28T04:27:40+00:00",
   "pulse": {
     "public_projects": 130,
-    "in_review": 126,
-    "public_notes": 2
+    "in_review": 123,
+    "public_notes": 4
   },
   "now_building": [
     {
@@ -14,7 +14,7 @@
     {
       "startup": "access-layer",
       "name": "AccessXWorld",
-      "public_status": "In design"
+      "public_status": "Release queued"
     },
     {
       "startup": "agentapi-hub",
@@ -39,12 +39,12 @@
     {
       "startup": "bioyield-labs",
       "name": "bioyield-labs",
-      "public_status": "In review"
+      "public_status": "Release queued"
     },
     {
       "startup": "blitzproof",
       "name": "blitzproof",
-      "public_status": "In review"
+      "public_status": "Release queued"
     },
     {
       "startup": "blitzunicorn",
@@ -54,7 +54,7 @@
     {
       "startup": "brandcrossover",
       "name": "brandcrossover",
-      "public_status": "In review"
+      "public_status": "Release queued"
     },
     {
       "startup": "gh0st",
@@ -64,10 +64,42 @@
   ],
   "activity": [
     {
+      "startup": "autoerp",
+      "summary": "AutoERP \u2014 Checking the experience before release.",
+      "at": "2026-09-28T04:27:40+00:00",
+      "kind": "public_testing"
+    },
+    {
+      "startup": "access-layer",
+      "summary": "AccessXWorld \u2014 Rebuilding the public experience.",
+      "at": "2026-09-28T04:27:40+00:00",
+      "kind": "public_designing"
+    },
+    {
       "startup": "bioyield-labs",
       "summary": "Bioyield Labs \u2014 Refined its public research presentation.",
       "at": "2026-09-28T00:59:22+00:00",
       "kind": "public_research_note"
+    },
+    {
+      "startup": "gh0st",
+      "summary": "gh0st \u2014 Reworked the privacy-flow experience and restored the CLI product showcase.",
+      "at": "2026-09-28T00:59:22+00:00",
+      "kind": "public_design_update"
+    }
+  ],
+  "built_this_week": [
+    {
+      "startup": "autoerp",
+      "summary": "AutoERP \u2014 Checking the experience before release.",
+      "at": "2026-09-28T04:27:40+00:00",
+      "kind": "public_testing"
+    },
+    {
+      "startup": "access-layer",
+      "summary": "AccessXWorld \u2014 Rebuilding the public experience.",
+      "at": "2026-09-28T04:27:40+00:00",
+      "kind": "public_designing"
     },
     {
       "startup": "gh0st",
@@ -87,7 +119,7 @@
     {
       "slug": "access-layer",
       "name": "AccessXWorld",
-      "public_status": "In design",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -171,14 +203,14 @@
     {
       "slug": "bioyield-labs",
       "name": "bioyield-labs",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "blitzproof",
       "name": "blitzproof",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -206,7 +238,7 @@
     {
       "slug": "brandcrossover",
       "name": "brandcrossover",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },

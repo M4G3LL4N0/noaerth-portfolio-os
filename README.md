@@ -1,6 +1,6 @@
 # Noaerth Portfolio OS
 
-Internal control plane for the startup portfolio. The Noaerth website reads sanitized output. It does not own this database.
+Autonomous venture-studio operating system for the Noaerth portfolio. It chooses a bounded improvement, builds it, reviews it, and keeps going. The Noaerth website reads sanitized output. It does not own this database.
 
 ## Architecture
 
