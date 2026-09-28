@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-09-28T01:01:34+00:00",
+  "generated_at": "2026-09-28T03:08:18+00:00",
   "pulse": {
     "public_projects": 130,
-    "in_review": 130,
+    "in_review": 128,
     "public_notes": 2
   },
   "now_building": [
     {
       "startup": "1bc",
       "name": "1bc",
-      "public_status": "In review"
+      "public_status": "Release queued"
     },
     {
       "startup": "access-layer",
       "name": "AccessXWorld",
-      "public_status": "In review"
+      "public_status": "Release queued"
     },
     {
       "startup": "agentapi-hub",
@@ -80,14 +80,14 @@
     {
       "slug": "1bc",
       "name": "1bc",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "access-layer",
       "name": "AccessXWorld",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
