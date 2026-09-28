@@ -7,6 +7,7 @@ from portfolio_os.db import connect
 from portfolio_os.engine import add_event
 from portfolio_os.exclusion import ExclusionError
 from portfolio_os.publish import build_public_snapshot
+from portfolio_os.httpapi import dispatch
 from portfolio_os.studio import (
     compiled_homepage,
     material_coverage,
@@ -78,6 +79,35 @@ class StudioTests(unittest.TestCase):
         self.assertNotIn("TEAM ONLY", public)
         self.assertNotIn("/Users/", public)
         self.assertIn("Rebuilding the public experience", public)
+
+    def test_internal_action_requires_a_token_and_public_feed_stays_public(self) -> None:
+        conn = connect(Path(tempfile.mkdtemp()) / "t.db")
+        conn.execute("INSERT INTO startups (slug, name, is_public) VALUES ('acme', 'Acme', 1)")
+        status, body = dispatch(conn, "GET", "/public/v1/snapshot", {}, None, "x" * 16)
+        self.assertEqual(status, 200)
+        self.assertNotIn("PRIVATE_SYSTEM", json.dumps(body))
+        status, body = dispatch(conn, "POST", "/api/v1/actions", {}, {"action": "pause", "slug": "acme"}, "x" * 16)
+        self.assertEqual(status, 401)
+        status, _body = dispatch(
+            conn,
+            "POST",
+            "/api/v1/actions",
+            {"authorization": "Bearer " + ("x" * 16)},
+            {"action": "pause", "slug": "acme"},
+            "x" * 16,
+        )
+        self.assertEqual(status, 200)
+        paused = conn.execute("SELECT paused FROM startups WHERE slug='acme'").fetchone()["paused"]
+        self.assertEqual(paused, 1)
+        status, _body = dispatch(
+            conn,
+            "POST",
+            "/api/v1/actions",
+            {"authorization": "Bearer " + ("x" * 16)},
+            {"action": "rm -rf", "slug": "acme"},
+            "x" * 16,
+        )
+        self.assertEqual(status, 400)
 
     def test_private_directory_is_not_a_studio_root(self) -> None:
         root = Path(tempfile.mkdtemp())

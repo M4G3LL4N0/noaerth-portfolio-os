@@ -372,12 +372,67 @@ def build_parser() -> argparse.ArgumentParser:
     doctor = sub.add_parser("doctor")
     doctor.set_defaults(func=cmd_doctor)
 
+    ecosystem = sub.add_parser("ecosystem")
+    ecosystem.set_defaults(func=cmd_ecosystem)
+
+    serve = sub.add_parser("serve")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8787)
+    serve.set_defaults(func=cmd_serve)
+
     block = sub.add_parser("block-release")
     block.add_argument("--startup", required=True)
     block.add_argument("--reason", required=True)
     block.set_defaults(func=cmd_block)
 
     return parser
+
+
+def cmd_ecosystem(args: argparse.Namespace) -> int:
+    import subprocess
+
+    conn = _conn(args)
+    roles = {
+        "noaerth": ("STUDIO_PUBLIC", 1),
+        "noaerth-labs": ("STUDIO_PUBLIC_LABS", 1),
+        "noaerth-team": ("STUDIO_INTERNAL", 0),
+        "portfolio-control": ("STUDIO_CONTROL_PLANE", 0),
+    }
+    root = Path(args.root)
+    for slug, (category, is_public) in roles.items():
+        conn.execute(
+            "UPDATE startups SET category = ?, is_public = ? WHERE slug = ?",
+            (category, is_public, slug),
+        )
+        repo = root / ("noaerth-portfolio-os" if slug == "portfolio-control" else slug)
+        sha = ""
+        if (repo / ".git").exists() or slug == "portfolio-control":
+            probe = repo if slug != "portfolio-control" else Path(__file__).resolve().parents[1]
+            sha = subprocess.run(
+                ["git", "-C", str(probe), "rev-parse", "--short", "HEAD"],
+                check=False,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        print(f"{slug}\t{category}\t{sha or 'missing'}")
+    conn.commit()
+    print("domains: labs.noaerth.com and team.noaerth.com are DOMAIN_CONFIGURATION_REQUIRED")
+    print("existing vercel projects: noaerth, noaerth-labs, noaerth-team")
+    return 0
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    token = os.environ.get("PORTFOLIO_OS_API_TOKEN", "")
+    if len(token) < 16:
+        print("PORTFOLIO_OS_API_TOKEN is required and is not printed.")
+        return 1
+    if args.host not in {"127.0.0.1", "localhost"}:
+        print("serve stays on localhost")
+        return 1
+    from portfolio_os.httpapi import serve
+
+    serve(_conn(args), args.host, args.port, token)
+    return 0
 
 
 def cmd_block(args: argparse.Namespace) -> int:
