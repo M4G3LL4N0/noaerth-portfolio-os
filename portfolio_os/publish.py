@@ -143,6 +143,25 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
             """,
             (row["id"],),
         ).fetchone()
+        shot = conn.execute(
+            """
+            SELECT viewport, commit_sha, file_name, verdict, findings, captured_at
+            FROM preview_shots WHERE startup_id = ? ORDER BY id DESC LIMIT 4
+            """,
+            (row["id"],),
+        ).fetchall()
+        shots = {}
+        for item in shot:
+            shots.setdefault(
+                item["viewport"],
+                {
+                    "commit": item["commit_sha"],
+                    "file": item["file_name"],
+                    "verdict": item["verdict"],
+                    "findings": item["findings"],
+                    "captured_at": item["captured_at"],
+                },
+            )
         gate = conn.execute(
             """
             SELECT commit_sha, visual, release_approval, deployment FROM release_gates
@@ -160,6 +179,7 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
                 "website_url": row["website_url"],
                 "open_work": [dict(item) for item in open_work],
                 "dossier": dossier,
+                "shots": shots,
                 "preview": None
                 if preview is None
                 else {

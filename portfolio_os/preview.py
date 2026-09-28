@@ -99,6 +99,7 @@ class PreviewManager:
         prober=None,
         alive=None,
         stopper=None,
+        capturer=None,
         max_active: int = MAX_ACTIVE,
     ) -> None:
         self.conn = conn
@@ -107,6 +108,7 @@ class PreviewManager:
         self.prober = prober or _http_probe
         self.alive = alive or _alive
         self.stopper = stopper or _signal_stop
+        self.capturer = capturer
         self.max_active = max_active
 
     def repo_for(self, slug: str) -> Path:
@@ -164,7 +166,30 @@ class PreviewManager:
             (status, utcnow() if healthy else None, run_id),
         )
         row = self.conn.execute("SELECT * FROM preview_runs WHERE id = ?", (run_id,)).fetchone()
-        return self._public(row)
+        public = self._public(row)
+        if healthy and self.capturer is not None and public.get("local_url"):
+            public["shots"] = self.capture(slug, public["local_url"], commit or "", branch or "")
+        return public
+
+    def capture(self, slug: str, url: str, commit: str, branch: str) -> dict:
+        startup = startup_by_slug(self.conn, slug)
+        if startup is None or startup["owner_private"] or self.capturer is None:
+            return {}
+        shots = self.capturer(url)
+        saved = {}
+        for viewport, file_name in shots.items():
+            if not file_name:
+                continue
+            self.conn.execute(
+                """
+                INSERT INTO preview_shots (
+                  startup_id, viewport, commit_sha, branch, route, file_name, captured_at
+                ) VALUES (?, ?, ?, ?, '/', ?, ?)
+                """,
+                (startup["id"], viewport, commit, branch, file_name, utcnow()),
+            )
+            saved[viewport] = {"file": file_name, "commit": commit}
+        return saved
 
     def stop(self, slug: str) -> dict:
         startup = startup_by_slug(self.conn, slug)
@@ -225,9 +250,40 @@ class PreviewManager:
         }
 
 
+def latest_shot(conn: sqlite3.Connection, startup_id: int, viewport: str = "desktop"):
+    return conn.execute(
+        """
+        SELECT commit_sha, file_name, verdict, findings, captured_at
+        FROM preview_shots WHERE startup_id = ? AND viewport = ?
+        ORDER BY id DESC LIMIT 1
+        """,
+        (startup_id, viewport),
+    ).fetchone()
+
+
 def approve_visual(conn: sqlite3.Connection, startup_id: int, commit: str, approver: str = "owner") -> dict:
+    shot = latest_shot(conn, startup_id, "desktop")
+    if shot is None or shot["commit_sha"] != commit:
+        return {"ok": False, "visual": "STALE_SCREENSHOT", "commit": commit}
     _gate(conn, startup_id, commit, visual="pass", approver=approver)
-    return {"visual": "pass", "commit": commit}
+    return {"ok": True, "visual": "pass", "commit": commit}
+
+
+def record_visual_review(conn: sqlite3.Connection, startup_id: int, commit: str, verdict: str, findings: str) -> dict:
+    if verdict not in {"PASS", "PASS_WITH_FOLLOWUP", "FAIL"}:
+        return {"ok": False, "state": "BAD_VERDICT"}
+    conn.execute(
+        """
+        UPDATE preview_shots SET verdict = ?, findings = ?
+        WHERE id = (
+          SELECT id FROM preview_shots
+          WHERE startup_id = ? AND viewport = 'desktop' AND commit_sha = ?
+          ORDER BY id DESC LIMIT 1
+        )
+        """,
+        (verdict, findings[:500], startup_id, commit),
+    )
+    return {"ok": True, "verdict": verdict, "commit": commit}
 
 
 def approve_release(conn: sqlite3.Connection, startup_id: int, commit: str, approver: str = "owner") -> dict:

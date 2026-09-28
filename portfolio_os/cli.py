@@ -393,6 +393,12 @@ def build_parser() -> argparse.ArgumentParser:
     preview.add_argument("--stop", action="store_true")
     preview.set_defaults(func=cmd_preview)
 
+    review_queue = sub.add_parser("review-queue")
+    review_queue.set_defaults(func=cmd_review_queue)
+
+    release_queue = sub.add_parser("release-queue")
+    release_queue.set_defaults(func=cmd_release_queue)
+
     approve = sub.add_parser("approve-release")
     approve.add_argument("slug")
     approve.add_argument("commit")
@@ -515,6 +521,41 @@ def cmd_preview(args: argparse.Namespace) -> int:
     if result.get("reason"):
         print(result["reason"])
     return 0 if result.get("status") in {"RUNNING", "STOPPED", "READY"} or result.get("ok") else 1
+
+
+def cmd_review_queue(args: argparse.Namespace) -> int:
+    conn = _conn(args)
+    rows = conn.execute(
+        """
+        SELECT startups.slug, preview_shots.commit_sha, preview_shots.verdict, preview_shots.captured_at
+        FROM preview_shots
+        JOIN startups ON startups.id = preview_shots.startup_id
+        WHERE preview_shots.viewport = 'desktop' AND startups.owner_private = 0
+        ORDER BY preview_shots.id DESC
+        """
+    ).fetchall()
+    seen = set()
+    for row in rows:
+        if row["slug"] in seen:
+            continue
+        seen.add(row["slug"])
+        print(f"{row['slug']}\t{row['commit_sha']}\t{row['verdict'] or 'WAITING'}\t{row['captured_at']}")
+    return 0
+
+
+def cmd_release_queue(args: argparse.Namespace) -> int:
+    conn = _conn(args)
+    rows = conn.execute(
+        """
+        SELECT startups.slug, release_gates.commit_sha, release_gates.release_approval, release_gates.deployment
+        FROM release_gates JOIN startups ON startups.id = release_gates.startup_id
+        WHERE startups.owner_private = 0
+        ORDER BY release_gates.id DESC
+        """
+    ).fetchall()
+    for row in rows:
+        print(f"{row['slug']}\t{row['commit_sha']}\t{row['release_approval']}\t{row['deployment']}")
+    return 0
 
 
 def cmd_approve_release(args: argparse.Namespace) -> int:

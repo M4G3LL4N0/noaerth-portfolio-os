@@ -88,6 +88,15 @@ class PreviewTests(unittest.TestCase):
         startup_id = self.conn.execute("SELECT id FROM startups WHERE slug = 'acme'").fetchone()["id"]
         blocked = queue_deployment(self.conn, startup_id, "abc123", "abc123")
         self.assertEqual(blocked["state"], "VISUAL_REVIEW_REQUIRED")
+        stale = approve_visual(self.conn, startup_id, "abc123")
+        self.assertEqual(stale["visual"], "STALE_SCREENSHOT")
+        self.conn.execute(
+            """
+            INSERT INTO preview_shots (startup_id, viewport, commit_sha, route, file_name, captured_at)
+            VALUES (?, 'desktop', 'abc123', '/', 'desktop.png', '2026-09-28T00:00:00Z')
+            """,
+            (startup_id,),
+        )
         approve_visual(self.conn, startup_id, "abc123")
         still = approve_release(self.conn, startup_id, "abc123")
         self.assertTrue(still["ok"])

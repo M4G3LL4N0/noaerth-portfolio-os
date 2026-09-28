@@ -198,6 +198,18 @@ def connect(path: Path) -> sqlite3.Connection:
           last_health TEXT,
           last_access TEXT
         );
+        CREATE TABLE IF NOT EXISTS preview_shots (
+          id INTEGER PRIMARY KEY,
+          startup_id INTEGER NOT NULL REFERENCES startups(id),
+          viewport TEXT NOT NULL,
+          commit_sha TEXT NOT NULL,
+          branch TEXT,
+          route TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          verdict TEXT,
+          findings TEXT,
+          captured_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS release_gates (
           id INTEGER PRIMARY KEY,
           startup_id INTEGER NOT NULL REFERENCES startups(id),
