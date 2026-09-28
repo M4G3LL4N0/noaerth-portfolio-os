@@ -183,7 +183,7 @@ class PreviewManager:
             return {"status": "FAILED", "port": port, "commit": commit}
         self.conn.execute("UPDATE preview_runs SET pid = ? WHERE id = ?", (pid, run_id))
         healthy = False
-        deadline = time.time() + 25
+        deadline = time.time() + 90
         while time.time() < deadline:
             if self.prober(port):
                 healthy = True
