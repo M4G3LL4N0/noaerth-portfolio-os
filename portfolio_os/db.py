@@ -184,6 +184,31 @@ def connect(path: Path) -> sqlite3.Connection:
           shard TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS preview_runs (
+          id INTEGER PRIMARY KEY,
+          startup_id INTEGER NOT NULL REFERENCES startups(id),
+          surface TEXT NOT NULL,
+          branch TEXT,
+          commit_sha TEXT,
+          port INTEGER,
+          pid INTEGER,
+          command TEXT,
+          status TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          last_health TEXT,
+          last_access TEXT
+        );
+        CREATE TABLE IF NOT EXISTS release_gates (
+          id INTEGER PRIMARY KEY,
+          startup_id INTEGER NOT NULL REFERENCES startups(id),
+          commit_sha TEXT NOT NULL,
+          visual TEXT NOT NULL,
+          release_approval TEXT NOT NULL,
+          deployment TEXT NOT NULL,
+          approver TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE(startup_id, commit_sha)
+        );
         """
     )
     return conn

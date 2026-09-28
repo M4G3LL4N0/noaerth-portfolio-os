@@ -388,6 +388,16 @@ def build_parser() -> argparse.ArgumentParser:
     provider.add_argument("name", choices=("vercel",))
     provider.set_defaults(func=cmd_provider)
 
+    preview = sub.add_parser("preview")
+    preview.add_argument("slug")
+    preview.add_argument("--stop", action="store_true")
+    preview.set_defaults(func=cmd_preview)
+
+    approve = sub.add_parser("approve-release")
+    approve.add_argument("slug")
+    approve.add_argument("commit")
+    approve.set_defaults(func=cmd_approve_release)
+
     block = sub.add_parser("block-release")
     block.add_argument("--startup", required=True)
     block.add_argument("--reason", required=True)
@@ -483,6 +493,44 @@ def cmd_provider(args: argparse.Namespace) -> int:
     print("policy: local QA before one production deploy of the newest reviewed commit")
     print("status: daily cap still blocks new production deploys when a blocker row exists")
     return 0
+
+
+def cmd_preview(args: argparse.Namespace) -> int:
+    from portfolio_os.exclusion import ExclusionError
+    from portfolio_os.preview import PreviewManager
+
+    conn = _conn(args)
+    manager = PreviewManager(conn, Path(args.root))
+    try:
+        result = manager.stop(args.slug) if args.stop else manager.start(args.slug)
+    except ExclusionError:
+        print("not found")
+        return 1
+    conn.commit()
+    for key in ("status", "port", "commit", "branch", "pid"):
+        if result.get(key) is not None:
+            print(f"{key}: {result[key]}")
+    if result.get("local_url"):
+        print(f"local: {result['local_url']}")
+    if result.get("reason"):
+        print(result["reason"])
+    return 0 if result.get("status") in {"RUNNING", "STOPPED", "READY"} or result.get("ok") else 1
+
+
+def cmd_approve_release(args: argparse.Namespace) -> int:
+    from portfolio_os.engine import startup_by_slug
+    from portfolio_os.preview import approve_release, approve_visual
+
+    conn = _conn(args)
+    startup = startup_by_slug(conn, args.slug)
+    if startup is None or startup["owner_private"]:
+        print("not found")
+        return 1
+    visual = approve_visual(conn, startup["id"], args.commit)
+    release = approve_release(conn, startup["id"], args.commit)
+    conn.commit()
+    print(visual.get("visual"), release.get("state"))
+    return 0 if release.get("ok") else 1
 
 
 def cmd_block(args: argparse.Namespace) -> int:

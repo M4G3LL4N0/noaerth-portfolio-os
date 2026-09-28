@@ -136,15 +136,46 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
                 dossier = None
             if dossier and ("/Users/" in json.dumps(dossier) or "openlegal" in json.dumps(dossier).lower()):
                 dossier = None
+        preview = conn.execute(
+            """
+            SELECT status, port, commit_sha, branch FROM preview_runs
+            WHERE startup_id = ? ORDER BY id DESC LIMIT 1
+            """,
+            (row["id"],),
+        ).fetchone()
+        gate = conn.execute(
+            """
+            SELECT commit_sha, visual, release_approval, deployment FROM release_gates
+            WHERE startup_id = ? ORDER BY id DESC LIMIT 1
+            """,
+            (row["id"],),
+        ).fetchone()
         startups.append(
             {
                 "slug": row["slug"],
                 "name": row["name"],
+                "category": row["category"],
                 "health": row["health"],
                 "priority": row["priority"],
                 "website_url": row["website_url"],
                 "open_work": [dict(item) for item in open_work],
                 "dossier": dossier,
+                "preview": None
+                if preview is None
+                else {
+                    "status": preview["status"],
+                    "port": preview["port"],
+                    "commit": preview["commit_sha"],
+                    "branch": preview["branch"],
+                },
+                "release": None
+                if gate is None
+                else {
+                    "commit": gate["commit_sha"],
+                    "visual": gate["visual"],
+                    "approval": gate["release_approval"],
+                    "deployment": gate["deployment"],
+                },
             }
         )
     queue = [

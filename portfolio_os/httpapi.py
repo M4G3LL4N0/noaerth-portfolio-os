@@ -18,6 +18,11 @@ ALLOWED_ACTIONS = frozenset(
         "accept_review",
         "reopen",
         "trigger_review",
+        "start_preview",
+        "stop_preview",
+        "approve_visual",
+        "approve_release",
+        "queue_deployment",
     }
 )
 SCHEMA_VERSION = 1
@@ -104,6 +109,47 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
             role="PORTFOLIO_DIRECTOR",
             priority=84,
         )
+    elif action in {"start_preview", "stop_preview", "approve_visual", "approve_release", "queue_deployment"}:
+        from pathlib import Path
+
+        from portfolio_os.exclusion import ExclusionError
+        from portfolio_os.preview import PreviewManager, approve_release, approve_visual, queue_deployment
+
+        portfolio_root = Path(__file__).resolve().parents[2]
+        try:
+            if action == "start_preview":
+                result = PreviewManager(conn, portfolio_root).start(slug)
+            elif action == "stop_preview":
+                result = PreviewManager(conn, portfolio_root).stop(slug)
+            else:
+                commit = str(payload.get("commit") or "")
+                if not commit:
+                    return 400, {"error": "commit_required"}
+                if action == "approve_visual":
+                    result = approve_visual(conn, startup["id"], commit)
+                elif action == "approve_release":
+                    result = approve_release(conn, startup["id"], commit)
+                else:
+                    import subprocess
+
+                    head = subprocess.run(
+                        ["git", "-C", str(portfolio_root / slug), "rev-parse", "--short", "HEAD"],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    ).stdout.strip()
+                    result = queue_deployment(conn, startup["id"], commit, head)
+        except ExclusionError:
+            return 404, {"error": "not_found"}
+        add_event(
+            conn,
+            actor="NOAERTH_TEAM",
+            event_type="team_action",
+            summary=f"{action} on {slug}",
+            visibility="TEAM",
+            startup_id=startup["id"],
+        )
+        return 200, {"ok": True, "action": action, "slug": slug, "result": result}
     elif action == "trigger_review":
         ensure_work(
             conn,
