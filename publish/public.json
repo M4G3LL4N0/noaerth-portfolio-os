@@ -1,0 +1,991 @@
+{
+  "generated_at": "2026-09-28T01:01:34+00:00",
+  "pulse": {
+    "public_projects": 130,
+    "in_review": 130,
+    "public_notes": 2
+  },
+  "now_building": [
+    {
+      "startup": "1bc",
+      "name": "1bc",
+      "public_status": "In review"
+    },
+    {
+      "startup": "access-layer",
+      "name": "AccessXWorld",
+      "public_status": "In review"
+    },
+    {
+      "startup": "agentapi-hub",
+      "name": "AgentAPI",
+      "public_status": "In review"
+    },
+    {
+      "startup": "autobuilder",
+      "name": "autobuilder",
+      "public_status": "In review"
+    },
+    {
+      "startup": "autoerp",
+      "name": "autoerp",
+      "public_status": "In review"
+    },
+    {
+      "startup": "behindcurtain",
+      "name": "behindcurtain",
+      "public_status": "In review"
+    },
+    {
+      "startup": "bioyield-labs",
+      "name": "bioyield-labs",
+      "public_status": "In review"
+    },
+    {
+      "startup": "blitzproof",
+      "name": "blitzproof",
+      "public_status": "In review"
+    },
+    {
+      "startup": "blitzunicorn",
+      "name": "blitzunicorn",
+      "public_status": "In review"
+    },
+    {
+      "startup": "brandcrossover",
+      "name": "brandcrossover",
+      "public_status": "In review"
+    },
+    {
+      "startup": "gh0st",
+      "name": "gh0st",
+      "public_status": "In review"
+    }
+  ],
+  "activity": [
+    {
+      "startup": "bioyield-labs",
+      "summary": "Bioyield Labs \u2014 Refined its public research presentation.",
+      "at": "2026-09-28T00:59:22+00:00",
+      "kind": "public_research_note"
+    },
+    {
+      "startup": "gh0st",
+      "summary": "gh0st \u2014 Reworked the privacy-flow experience and restored the CLI product showcase.",
+      "at": "2026-09-28T00:59:22+00:00",
+      "kind": "public_design_update"
+    }
+  ],
+  "startups": [
+    {
+      "slug": "1bc",
+      "name": "1bc",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "access-layer",
+      "name": "AccessXWorld",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "agentapi-hub",
+      "name": "AgentAPI",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "agentcore-silicon",
+      "name": "agentcore-silicon",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "agentos",
+      "name": "agentos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "ai-factory",
+      "name": "ai-factory",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "ai-mesh",
+      "name": "ai-mesh",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "autobuilder",
+      "name": "autobuilder",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "autoerp",
+      "name": "autoerp",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "automateos",
+      "name": "automateos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "ayncient",
+      "name": "ayncient",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "behindcurtain",
+      "name": "behindcurtain",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "betterfintech",
+      "name": "betterfintech",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "bioyield-labs",
+      "name": "bioyield-labs",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "blitzproof",
+      "name": "blitzproof",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "blitzunicorn",
+      "name": "blitzunicorn",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "bourgaeux",
+      "name": "bourgaeux",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "bradsbestbubbles",
+      "name": "bradsbestbubbles",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "brandcrossover",
+      "name": "brandcrossover",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "buildloop-usa",
+      "name": "buildloop-usa",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cannex-logistics",
+      "name": "cannex-logistics",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cheetahbearfuel",
+      "name": "cheetahbearfuel",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "childdevos",
+      "name": "childdevos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "chipflow",
+      "name": "chipflow",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "claimpilot-ai",
+      "name": "claimpilot-ai",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cleanstack-macos",
+      "name": "cleanstack-macos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cleanstack-os",
+      "name": "CleanStackOS",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cloudcastle",
+      "name": "cloudcastle",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "commos",
+      "name": "commos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "companyos",
+      "name": "companyos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "computeflow",
+      "name": "computeflow",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cortexhq",
+      "name": "cortexhq",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cropshield-ai",
+      "name": "cropshield-ai",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cruxenio",
+      "name": "cruxenio",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "cxntradict",
+      "name": "cxntradict",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "datatherapy",
+      "name": "datatherapy",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "deploylocal",
+      "name": "deploylocal",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "devstate",
+      "name": "devstate",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "dirty-sneakers",
+      "name": "dirty-sneakers",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "emailsimple",
+      "name": "emailsimple",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "enterprisepilot",
+      "name": "enterprisepilot",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "evalforge",
+      "name": "evalforge",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "evsec-one",
+      "name": "evsec-one",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "execmemory-ai",
+      "name": "execmemory-ai",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "executionos",
+      "name": "executionos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "fastprocure-ai",
+      "name": "fastprocure-ai",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "foreverluvd",
+      "name": "foreverluvd",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "forgeflow",
+      "name": "forgeflow",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "founderskingdom",
+      "name": "founderskingdom",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "freeconomie",
+      "name": "freeconomie",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "fullofshit",
+      "name": "fullofshit",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "fungmind",
+      "name": "fungmind",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "gamecombo",
+      "name": "gamecombo",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "genotwin-health",
+      "name": "genotwin-health",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "gh0st",
+      "name": "gh0st",
+      "public_status": "In review",
+      "url": "https://gh0st-six.vercel.app",
+      "github": null
+    },
+    {
+      "slug": "ghostframe",
+      "name": "ghostframe",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "grokbot-concierge",
+      "name": "grokbot-concierge",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "grokbot-office",
+      "name": "grokbot-office",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "grokbot-society",
+      "name": "grokbot-society",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "grokgeneral",
+      "name": "grokgeneral",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "grokinstall",
+      "name": "grokinstall",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "grokmax",
+      "name": "grokmax",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "hackerzart",
+      "name": "hackerzart",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "happyblock",
+      "name": "happyblock",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "imessage",
+      "name": "imessage",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "interceptorgrid",
+      "name": "interceptorgrid",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "lagrangeos",
+      "name": "lagrangeos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "ledgerops-ai",
+      "name": "ledgerops-ai",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "legacybridge",
+      "name": "legacybridge",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "life-finds-a-way",
+      "name": "life-finds-a-way",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "loopcompute-cloud",
+      "name": "loopcompute-cloud",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "lost-bag",
+      "name": "lost-bag",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "lunarfoundry",
+      "name": "lunarfoundry",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "luvconvos",
+      "name": "luvconvos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "luvpartnr",
+      "name": "luvpartnr",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "luvstories",
+      "name": "luvstories",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "modex",
+      "name": "modex",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "morphui",
+      "name": "morphui",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "n1-therapeutics",
+      "name": "n1-therapeutics",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "naextblock",
+      "name": "naextblock",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "naturex",
+      "name": "naturex",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "nex-robotix",
+      "name": "nex-robotix",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "noaerth",
+      "name": "noaerth",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "obviouslybad",
+      "name": "obviouslybad",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "oddbotix",
+      "name": "oddbotix",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "oodax",
+      "name": "oodax",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "opencode-watchdog",
+      "name": "opencode-watchdog",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "opsautopilot",
+      "name": "opsautopilot",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "orbitchip",
+      "name": "orbitchip",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "orbitprint",
+      "name": "orbitprint",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "orgos",
+      "name": "orgos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "p-aware",
+      "name": "p-aware",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "paios-one",
+      "name": "PAIOS",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "poolwater",
+      "name": "poolwater",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "psychemap",
+      "name": "psychemap",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "readablestack",
+      "name": "readablestack",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "redwoud",
+      "name": "redwoud",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "requestayo",
+      "name": "requestayo",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "reviewforge-ai",
+      "name": "reviewforge-ai",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "saeturtle",
+      "name": "saeturtle",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "saus",
+      "name": "saus",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "seai-mind",
+      "name": "seai-mind",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "shopright",
+      "name": "shopright",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "siliconcontrol-tower",
+      "name": "siliconcontrol-tower",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "soulmayte",
+      "name": "soulmayte",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "spacecompute-cloud",
+      "name": "spacecompute-cloud",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "spaceedu",
+      "name": "SpaceEdu",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "spouwse",
+      "name": "spouwse",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "startupquick",
+      "name": "startupquick",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "stayseatedplease",
+      "name": "stayseatedplease",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "strxngth",
+      "name": "strxngth",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "sunsetx",
+      "name": "sunsetx",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "supplyos-ai",
+      "name": "supplyos-ai",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "swarmshield",
+      "name": "swarmshield",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "tempoos",
+      "name": "tempoos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "therapyux",
+      "name": "therapyux",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "trajectoryos",
+      "name": "trajectoryos",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "trillionx",
+      "name": "trillionx",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "trustxverify",
+      "name": "trustxverify",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "useros",
+      "name": "useros",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "uxvisualengine",
+      "name": "uxvisualengine",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "valuedsociety",
+      "name": "valuedsociety",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "vencapmentor",
+      "name": "vencapmentor",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "venturerank-os",
+      "name": "venturerank-os",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "vizuler",
+      "name": "vizuler",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "wordless-website",
+      "name": "Wordless",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "workflowcanvas",
+      "name": "workflowcanvas",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "youareprofound",
+      "name": "youareprofound",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "youstate",
+      "name": "youstate",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    },
+    {
+      "slug": "zaeux",
+      "name": "zaeux",
+      "public_status": "In review",
+      "url": null,
+      "github": null
+    }
+  ]
+}
