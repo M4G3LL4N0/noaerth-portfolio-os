@@ -7,6 +7,7 @@ from portfolio_os.db import connect
 from portfolio_os.engine import add_event
 from portfolio_os.exclusion import ExclusionError
 from portfolio_os.publish import build_public_snapshot
+from portfolio_os.dossier import render_dossier, write_dossier
 from portfolio_os.httpapi import dispatch
 from portfolio_os.studio import (
     compiled_homepage,
@@ -133,6 +134,28 @@ class StudioTests(unittest.TestCase):
             "x" * 16,
         )
         self.assertEqual(status, 404)
+
+    def test_dossier_uses_real_heading_and_refuses_private_paths(self) -> None:
+        root = Path(tempfile.mkdtemp())
+        startup = root / "acme"
+        (startup / "app").mkdir(parents=True)
+        (startup / "app" / "page.tsx").write_text("<h1>Signed access for a door</h1>", encoding="utf-8")
+        (startup / "package.json").write_text('{"scripts":{"build":"next build"}}', encoding="utf-8")
+        private = root / "openlegal-data"
+        private.mkdir()
+        (private / "secret.txt").write_text("hidden", encoding="utf-8")
+        conn = connect(Path(tempfile.mkdtemp()) / "t.db")
+        conn.execute("INSERT INTO startups (slug, name, is_public) VALUES ('acme', 'Acme', 1)")
+        startup_id = conn.execute("SELECT id FROM startups WHERE slug='acme'").fetchone()["id"]
+        dest = write_dossier(startup, root, "acme", Path(tempfile.mkdtemp()), conn, startup_id)
+        text = (dest / "UNDERSTANDING.md").read_text(encoding="utf-8")
+        self.assertIn("Signed access for a door", text)
+        self.assertIn("UNKNOWN", text)
+        blob = "".join(path.read_text(encoding="utf-8") for path in dest.iterdir())
+        self.assertNotIn("/Users/", blob)
+        self.assertNotIn("hidden", blob)
+        docs = render_dossier("access-layer", {"homepage": "app/page.tsx", "heading": "Signed access", "routes": [], "tooling": {}}, None)
+        self.assertIn("UNKNOWN", docs["UNDERSTANDING.md"])
 
     def test_private_directory_is_not_a_studio_root(self) -> None:
         root = Path(tempfile.mkdtemp())

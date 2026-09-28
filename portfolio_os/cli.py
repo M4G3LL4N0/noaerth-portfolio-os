@@ -380,6 +380,14 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=8787)
     serve.set_defaults(func=cmd_serve)
 
+    dossier = sub.add_parser("dossier")
+    dossier.add_argument("slug")
+    dossier.set_defaults(func=cmd_dossier)
+
+    provider = sub.add_parser("provider")
+    provider.add_argument("name", choices=("vercel",))
+    provider.set_defaults(func=cmd_provider)
+
     block = sub.add_parser("block-release")
     block.add_argument("--startup", required=True)
     block.add_argument("--reason", required=True)
@@ -432,6 +440,48 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from portfolio_os.httpapi import serve
 
     serve(_conn(args), args.host, args.port, token)
+    return 0
+
+
+def cmd_dossier(args: argparse.Namespace) -> int:
+    from portfolio_os.dossier import write_dossier
+    from portfolio_os.workspace import startup_roots
+
+    if args.slug in {"openlegal-data"}:
+        print("refused")
+        return 1
+    conn = _conn(args)
+    startup = startup_by_slug(conn, args.slug)
+    if startup is None or startup["owner_private"]:
+        print("refused")
+        return 1
+    roots = startup_roots(Path(args.root), args.slug)
+    dest = write_dossier(roots[0], Path(args.root), args.slug, PACKAGE_ROOT / "dossiers", conn, startup["id"])
+    conn.commit()
+    print(dest)
+    return 0
+
+
+def cmd_provider(args: argparse.Namespace) -> int:
+    conn = _conn(args)
+    used = conn.execute(
+        """
+        SELECT COUNT(*) AS n FROM deployments
+        WHERE timestamp >= datetime('now', '-1 day') AND status != 'blocked'
+        """
+    ).fetchone()["n"]
+    queued = conn.execute(
+        "SELECT COUNT(*) AS n FROM startups WHERE health = 'RELEASE_READY'"
+    ).fetchone()["n"]
+    print("plan: vercel hobby")
+    print("project cap: 200, do not create new projects")
+    print("daily platform allowance: about 100")
+    print("autonomous budget: 70")
+    print("reserve: 30")
+    print(f"non-blocked deployment rows in the last day: {used}")
+    print(f"release-ready startups: {queued}")
+    print("policy: local QA before one production deploy of the newest reviewed commit")
+    print("status: daily cap still blocks new production deploys when a blocker row exists")
     return 0
 
 

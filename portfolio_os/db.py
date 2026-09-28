@@ -172,6 +172,12 @@ def connect(path: Path) -> sqlite3.Connection:
           later TEXT,
           created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS dossiers (
+          startup_id INTEGER PRIMARY KEY REFERENCES startups(id),
+          slug TEXT NOT NULL,
+          facts TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
         """
     )
     return conn
