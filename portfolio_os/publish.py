@@ -191,6 +191,8 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
     daemon = "offline"
     daemon_commit = None
     daemon_schema = None
+    daemon_model = None
+    daemon_workers = None
     if beat.is_file() and time.time() - beat.stat().st_mtime < 600:
         raw = beat.read_text(encoding="utf-8").strip()
         if raw.startswith("{"):
@@ -201,6 +203,8 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
             daemon = parsed.get("status") or "running"
             daemon_commit = parsed.get("commit")
             daemon_schema = parsed.get("schema")
+            daemon_model = parsed.get("model")
+            daemon_workers = parsed.get("workers")
         else:
             daemon = "running"
     control_commit = control_plane_commit()
@@ -209,7 +213,7 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
         for row in conn.execute(
             """
             SELECT agent_runs.role, agent_runs.status, agent_runs.result_summary,
-                   agent_runs.started_at, startups.slug
+                   agent_runs.started_at, agent_runs.model, startups.slug
             FROM agent_runs
             LEFT JOIN work_items ON work_items.id = agent_runs.work_item_id
             LEFT JOIN startups ON startups.id = work_items.startup_id
@@ -224,6 +228,15 @@ def build_team_snapshot(conn: sqlite3.Connection) -> dict:
         "daemon": daemon,
         "daemon_commit": daemon_commit,
         "daemon_schema": daemon_schema,
+        "model": daemon_model,
+        "workers": daemon_workers,
+        "coverage": {
+            "public_startups": conn.execute(
+                "SELECT COUNT(*) AS n FROM startups WHERE is_public = 1 AND owner_private = 0"
+            ).fetchone()["n"],
+            "dossiers": conn.execute("SELECT COUNT(*) AS n FROM dossiers").fetchone()["n"],
+            "shards": conn.execute("SELECT COUNT(DISTINCT shard) AS n FROM startup_coverage").fetchone()["n"],
+        },
         "control_plane": {"commit": control_commit, "schema": SCHEMA_VERSION},
         "agents": agents,
         "health": health_counts,

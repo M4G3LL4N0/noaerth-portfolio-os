@@ -152,6 +152,7 @@ def connect(path: Path) -> sqlite3.Connection:
     _ensure_column(conn, "locks", "work_item_id", "work_item_id INTEGER")
     _ensure_column(conn, "locks", "run_id", "run_id TEXT")
     _ensure_column(conn, "work_items", "priority_reason", "priority_reason TEXT")
+    _ensure_column(conn, "agent_runs", "model", "model TEXT")
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS material_improvements (
@@ -176,6 +177,11 @@ def connect(path: Path) -> sqlite3.Connection:
           startup_id INTEGER PRIMARY KEY REFERENCES startups(id),
           slug TEXT NOT NULL,
           facts TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS startup_coverage (
+          startup_id INTEGER PRIMARY KEY REFERENCES startups(id),
+          shard TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
         """

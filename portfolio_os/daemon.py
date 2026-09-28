@@ -11,6 +11,16 @@ from pathlib import Path
 from portfolio_os.dossier import SCHEMA_VERSION
 from portfolio_os.execute import execute_batch
 from portfolio_os.publish import write_report, write_snapshots
+from portfolio_os.squads import REASONING_MODEL
+
+LOADED_COMMIT: str | None = None
+
+
+def loaded_commit() -> str:
+    global LOADED_COMMIT
+    if LOADED_COMMIT is None:
+        LOADED_COMMIT = control_plane_commit()
+    return LOADED_COMMIT
 
 
 def control_plane_commit(root: Path | None = None) -> str:
@@ -28,7 +38,14 @@ def control_plane_commit(root: Path | None = None) -> str:
 
 def heartbeat_body(root: Path | None = None) -> str:
     return json.dumps(
-        {"status": "running", "commit": control_plane_commit(root), "schema": SCHEMA_VERSION}
+        {
+            "status": "running",
+            "commit": loaded_commit(),
+            "head": control_plane_commit(root),
+            "schema": SCHEMA_VERSION,
+            "model": REASONING_MODEL,
+            "workers": 1,
+        }
     )
 
 

@@ -10,6 +10,7 @@ from portfolio_os.publish import build_public_snapshot
 from portfolio_os.daemon import heartbeat_body
 from portfolio_os.dossier import classify_frontend, render_dossier, write_dossier
 from portfolio_os.reconcile import allow_product_state, classify_workspace_path
+from portfolio_os.squads import REASONING_MODEL, assign_shards
 from portfolio_os.httpapi import dispatch
 from portfolio_os.studio import (
     compiled_homepage,
@@ -174,7 +175,12 @@ class StudioTests(unittest.TestCase):
         self.assertIn("src/app/page.tsx", docs["BUILD_MAP.md"])
         beat = heartbeat_body(root)
         self.assertIn("schema", beat)
+        self.assertIn(REASONING_MODEL, beat)
         self.assertNotIn("/Users/", beat)
+        shards = assign_shards(["b", "a", "c"] + [f"s{i}" for i in range(12)])
+        self.assertEqual(len(shards), 15)
+        self.assertEqual(shards["a"], "SHARD-01")
+        self.assertEqual(len(set(shards.values())), 2)
 
     def test_workspace_classification_ignores_artifacts_and_does_not_invent_a_working_flow(self) -> None:
         self.assertEqual(classify_workspace_path("node_modules/next/package.json"), "DEPENDENCY_ARTIFACT")
