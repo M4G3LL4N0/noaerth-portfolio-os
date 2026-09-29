@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import sys
 import subprocess
 import time
 from pathlib import Path
@@ -49,6 +50,13 @@ def daemon_is_fresh(path: Path, max_age: int = 600) -> bool:
     return (time.time() - path.stat().st_mtime) < max_age
 
 
+def should_reload(loaded: str, head: str, dirty_sources: str, locks: int) -> bool:
+    """Restart only after a clean committed control-plane change, with nothing locked."""
+    if locks or not head or head == "unknown" or head == loaded:
+        return False
+    return not dirty_sources.strip()
+
+
 def worker_plan() -> dict[str, int]:
     cpus = os.cpu_count() or 2
     try:
@@ -72,6 +80,40 @@ def heartbeat_body(root: Path | None = None) -> str:
             "lanes": lanes,
         }
     )
+
+
+def _reload_if_committed(conn: sqlite3.Connection, interval: int) -> bool:
+    package = Path(__file__).resolve().parents[1]
+    dirty = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD", "--", "portfolio_os", "tests"],
+        cwd=package,
+        check=False,
+        capture_output=True,
+        text=True,
+    ).stdout
+    locks = conn.execute("SELECT COUNT(*) AS n FROM locks").fetchone()["n"]
+    if not should_reload(loaded_commit(), control_plane_commit(package), dirty, locks):
+        return False
+    verified = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "unittest",
+            "tests.test_ui",
+            "tests.test_os",
+            "tests.test_preview",
+            "tests.test_execute",
+        ],
+        cwd=package,
+        env={**os.environ, "PYTHONPATH": "."},
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if verified.returncode != 0:
+        return False
+    conn.close()
+    os.execv(sys.executable, [sys.executable, "-m", "portfolio_os", "daemon", "--interval", str(interval)])
+    return True
 
 
 def run_daemon(
@@ -99,5 +141,7 @@ def run_daemon(
             write_snapshots(conn, publish_dir)
         conn.commit()
         cycles += 1
+        if max_cycles is None and _reload_if_committed(conn, interval):
+            return "reloaded"
         if max_cycles is None:
             time.sleep(interval)

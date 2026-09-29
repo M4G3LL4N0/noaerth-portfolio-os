@@ -144,9 +144,12 @@ def _ensure_column(conn: sqlite3.Connection, table: str, column: str, ddl: str) 
 
 
 def connect(path: Path) -> sqlite3.Connection:
+    """Open one connection for the calling thread. Do not share it across threads."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, check_same_thread=False)
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.executescript(SCHEMA)
     _ensure_column(conn, "startups", "paused", "paused INTEGER NOT NULL DEFAULT 0")
     _ensure_column(conn, "locks", "work_item_id", "work_item_id INTEGER")

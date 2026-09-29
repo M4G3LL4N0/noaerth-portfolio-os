@@ -1,7 +1,10 @@
+import sqlite3
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
+from portfolio_os.daemon import should_reload
 from portfolio_os.db import connect
 from portfolio_os.httpapi import handle
 from portfolio_os.localauth import consume_bootstrap, issue_bootstrap, resolve_token
@@ -95,3 +98,58 @@ class UiTests(unittest.TestCase):
         self.assertEqual(again, 404)
         self.assertIsNotNone(resolve_token(os_root, "127.0.0.1"))
         self.assertIsNone(resolve_token(os_root, "10.0.0.8"))
+
+    def test_shared_connection_fails_on_another_thread(self) -> None:
+        path = Path(tempfile.mkdtemp()) / "shared.db"
+        owner = connect(path)
+        errors: list[BaseException] = []
+
+        def other() -> None:
+            try:
+                owner.execute("SELECT 1")
+            except sqlite3.ProgrammingError as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=other)
+        thread.start()
+        thread.join()
+        owner.close()
+        self.assertTrue(errors)
+
+    def test_request_threads_each_open_a_connection(self) -> None:
+        path = Path(tempfile.mkdtemp()) / "split.db"
+        setup = connect(path)
+        setup.execute("CREATE TABLE ticks (n INTEGER)")
+        setup.commit()
+        setup.close()
+        errors: list[BaseException] = []
+
+        def write(n: int) -> None:
+            conn = connect(path)
+            try:
+                conn.execute("INSERT INTO ticks (n) VALUES (?)", (n,))
+                conn.commit()
+                conn.execute("SELECT COUNT(*) AS n FROM ticks").fetchone()
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                conn.close()
+
+        threads = [threading.Thread(target=write, args=(n,)) for n in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        check = connect(path)
+        mode = check.execute("PRAGMA journal_mode").fetchone()[0]
+        count = check.execute("SELECT COUNT(*) AS n FROM ticks").fetchone()["n"]
+        check.close()
+        self.assertEqual(errors, [])
+        self.assertEqual(mode, "wal")
+        self.assertEqual(count, 4)
+
+    def test_reload_waits_for_a_clean_commit_and_no_locks(self) -> None:
+        self.assertFalse(should_reload("aaa", "aaa", "", 0))
+        self.assertFalse(should_reload("aaa", "bbb", "portfolio_os/db.py\n", 0))
+        self.assertFalse(should_reload("aaa", "bbb", "", 1))
+        self.assertTrue(should_reload("aaa", "bbb", "", 0))

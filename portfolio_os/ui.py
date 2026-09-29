@@ -85,9 +85,20 @@ form {{ display: inline; }}
 img {{ max-width: 280px; height: auto; background: #000; }}
 </style></head><body>
 <header><strong>Portfolio OS</strong> <span class="muted">engine, not the studio</span>
-<p><a href="http://127.0.0.1:3000">Open Team</a></p>
+{_version_line(root)}
+<p><a href="http://127.0.0.1:4320">Open Team</a></p>
 <nav>{links}</nav></header>
 <main>{body}</main></body></html>"""
+
+
+def _version_line(root: Path) -> str:
+    beat = _heartbeat(root)
+    loaded = beat.get("commit") or "unknown"
+    head = control_plane_commit(root)
+    warn = ""
+    if loaded != head:
+        warn = "<strong>CONTROL PLANE UPDATE REQUIRED.</strong> "
+    return f"<p>{warn}HEAD {_e(head)} · DAEMON {_e(loaded)} · MODEL {_e(beat.get('model') or 'grok-4.7')} · SCHEMA {_e(beat.get('schema', ''))}</p>"
 
 
 def login_page(failed: bool = False) -> str:

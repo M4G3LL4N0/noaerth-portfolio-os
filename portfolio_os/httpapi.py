@@ -316,9 +316,11 @@ def handle(
     return status, "application/json", json.dumps(payload).encode("utf-8"), extra
 
 
-def serve(conn: sqlite3.Connection, host: str, port: int, token: str) -> None:
+def serve(db_path: Path, host: str, port: int, token: str) -> None:
     import os
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from portfolio_os.db import connect
 
     root = Path(__file__).resolve().parents[1]
     pid_path = root / "data" / "serve.pid"
@@ -336,13 +338,17 @@ def serve(conn: sqlite3.Connection, host: str, port: int, token: str) -> None:
             self.wfile.write(body)
 
         def _go(self, method: str, raw: bytes = b"") -> None:
-            headers = {key.lower(): value for key, value in self.headers.items()}
-            client_host = self.client_address[0] if self.client_address else ""
-            status, content_type, body, extra = handle(
-                conn, method, self.path.split("?")[0], headers, raw, token, root, client_host
-            )
-            if method == "POST":
-                conn.commit()
+            conn = connect(db_path)
+            try:
+                headers = {key.lower(): value for key, value in self.headers.items()}
+                client_host = self.client_address[0] if self.client_address else ""
+                status, content_type, body, extra = handle(
+                    conn, method, self.path.split("?")[0], headers, raw, token, root, client_host
+                )
+                if method == "POST":
+                    conn.commit()
+            finally:
+                conn.close()
             self._respond(status, content_type, body, extra)
 
         def do_GET(self) -> None:  # noqa: N802

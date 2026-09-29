@@ -529,8 +529,12 @@ def cmd_serve(args: argparse.Namespace) -> int:
     if getattr(args, "open", False):
         _open_bootstrap(args.port)
     _print_running(args.port)
-    serve(_conn(args), args.host, args.port, token)
+    serve(_db_path(args), args.host, args.port, token)
     return 0
+
+
+def _db_path(args: argparse.Namespace) -> Path:
+    return Path(args.db) if args.db else default_db_path(PACKAGE_ROOT)
 
 
 def cmd_up(args: argparse.Namespace) -> int:
@@ -569,7 +573,7 @@ def cmd_up(args: argparse.Namespace) -> int:
         _open_bootstrap(args.port)
     from portfolio_os.httpapi import serve
 
-    serve(_conn(args), args.host, args.port, token)
+    serve(_db_path(args), args.host, args.port, token)
     return 0
 
 
