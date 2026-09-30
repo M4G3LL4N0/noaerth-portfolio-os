@@ -135,11 +135,22 @@ def run_daemon(
         beat.write_text(heartbeat_body() + "\n", encoding="utf-8")
         if max_cycles is not None and cycles >= max_cycles:
             return "idle"
-        execute_batch(conn, portfolio_root, worker_plan()["mutation"], evidence_root)
-        if publish_dir is not None:
-            write_report(conn, "daily")
-            write_snapshots(conn, publish_dir)
-        conn.commit()
+        try:
+            execute_batch(conn, portfolio_root, worker_plan()["mutation"], evidence_root)
+            if publish_dir is not None:
+                write_report(conn, "daily")
+                write_snapshots(conn, publish_dir)
+            conn.commit()
+        except sqlite3.OperationalError as exc:
+            print(f"portfolio-os: database busy, cycle skipped: {exc}", file=sys.stderr)
+            try:
+                conn.rollback()
+            except sqlite3.Error:
+                pass
+            if max_cycles is not None:
+                raise
+            time.sleep(2)
+            continue
         cycles += 1
         if max_cycles is None and _reload_if_committed(conn, interval):
             return "reloaded"

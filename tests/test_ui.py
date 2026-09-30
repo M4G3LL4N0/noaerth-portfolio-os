@@ -116,6 +116,60 @@ class UiTests(unittest.TestCase):
         owner.close()
         self.assertTrue(errors)
 
+    def test_uncommitted_write_blocks_another_connection(self) -> None:
+        path = Path(tempfile.mkdtemp()) / "held.db"
+        holder = connect(path)
+        holder.execute("CREATE TABLE ticks (n INTEGER)")
+        holder.commit()
+        holder.execute("INSERT INTO ticks (n) VALUES (1)")
+        errors: list[BaseException] = []
+
+        def other() -> None:
+            conn = connect(path)
+            conn.execute("PRAGMA busy_timeout=200")
+            try:
+                conn.execute("INSERT INTO ticks (n) VALUES (2)")
+                conn.commit()
+            except sqlite3.OperationalError as exc:
+                errors.append(exc)
+            finally:
+                conn.close()
+
+        thread = threading.Thread(target=other)
+        thread.start()
+        thread.join()
+        holder.rollback()
+        holder.close()
+        self.assertTrue(any("locked" in str(exc).lower() for exc in errors))
+
+    def test_commit_before_slow_work_lets_another_writer_in(self) -> None:
+        path = Path(tempfile.mkdtemp()) / "released.db"
+        holder = connect(path)
+        holder.execute("CREATE TABLE ticks (n INTEGER)")
+        holder.commit()
+        holder.execute("INSERT INTO ticks (n) VALUES (1)")
+        holder.commit()
+        errors: list[BaseException] = []
+
+        def other() -> None:
+            conn = connect(path)
+            conn.execute("PRAGMA busy_timeout=1000")
+            try:
+                conn.execute("INSERT INTO ticks (n) VALUES (2)")
+                conn.commit()
+            except sqlite3.OperationalError as exc:
+                errors.append(exc)
+            finally:
+                conn.close()
+
+        thread = threading.Thread(target=other)
+        thread.start()
+        thread.join()
+        count = holder.execute("SELECT COUNT(*) AS n FROM ticks").fetchone()["n"]
+        holder.close()
+        self.assertEqual(errors, [])
+        self.assertEqual(count, 2)
+
     def test_request_threads_each_open_a_connection(self) -> None:
         path = Path(tempfile.mkdtemp()) / "split.db"
         setup = connect(path)

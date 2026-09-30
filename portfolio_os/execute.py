@@ -302,6 +302,7 @@ def execute_startup(
             engineer["package"] = True
         _run_row(conn, startup["id"], "SOFTWARE_ENGINEER", work_id, "Inspected the repo without adding features.", engineer, "completed", [], "")
         evidence_dir = evidence_root / slug
+        conn.commit()
         proc, url = preview(root, slug) if render else (None, None)
         desktop = render_url(url, evidence_dir / "desktop.png", 1440, 900) if url else None
         mobile = render_url(url, evidence_dir / "mobile.png", 390, 844) if url else None

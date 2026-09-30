@@ -182,6 +182,7 @@ class PreviewManager:
             self.conn.execute("UPDATE preview_runs SET status = 'FAILED' WHERE id = ?", (run_id,))
             return {"status": "FAILED", "port": port, "commit": commit}
         self.conn.execute("UPDATE preview_runs SET pid = ? WHERE id = ?", (pid, run_id))
+        self.conn.commit()
         healthy = False
         deadline = time.time() + 90
         while time.time() < deadline:
@@ -196,6 +197,7 @@ class PreviewManager:
         )
         row = self.conn.execute("SELECT * FROM preview_runs WHERE id = ?", (run_id,)).fetchone()
         public = self._public(row)
+        self.conn.commit()
         if healthy and self.capturer is not None and public.get("local_url"):
             public["shots"] = self.capture(slug, public["local_url"], commit or "", branch or "")
         return public
