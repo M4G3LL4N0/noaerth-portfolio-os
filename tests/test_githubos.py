@@ -228,6 +228,127 @@ class VersionOrdering(unittest.TestCase):
         self.assertLess(block.index("v1.0.0-rc.1"), block.index("v0.5.0"))
 
 
+class SiteOnlyClassification(unittest.TestCase):
+    """A marketing site is deployment infrastructure, not a product.
+
+    The failure this prevents: a public `agentos-website` inflating the
+    public-system count on the profile, which is a small lie that compounds.
+    """
+
+    NAMES = {"agentos", "agentos-website", "gh0st", "gh0st-website",
+             "seai-mind", "why-are-you-here"}
+
+    def _classify(self, name, **over):
+        repo = _repo(name=name, **over)
+        return githubos.classify(repo, githubos.score_repository(repo, ALL_FILES), self.NAMES)
+
+    def test_site_with_canonical_sibling_is_site_only(self):
+        self.assertEqual(self._classify("agentos-website"), "SITE_ONLY")
+
+    def test_site_is_site_only_even_when_it_scores_perfectly(self):
+        self.assertEqual(self._classify("gh0st-website", test_count=999), "SITE_ONLY")
+
+    def test_canonical_project_is_not_site_only(self):
+        self.assertNotEqual(self._classify("agentos"), "SITE_ONLY")
+
+    def test_product_named_website_is_not_misfiled(self):
+        """Semantic, not lexical: a web product keeps its engineering identity."""
+        repo = _repo(name="dashboard-website", is_product=True)
+        got = githubos.classify(repo, githubos.score_repository(repo, ALL_FILES), self.NAMES)
+        self.assertNotEqual(got, "SITE_ONLY")
+
+    def test_no_sibling_means_not_site_only(self):
+        """Absent proof of a canonical parent, do not assume deployment."""
+        repo = _repo(name="lonely-website")
+        got = githubos.classify(repo, githubos.score_repository(repo, ALL_FILES), {"lonely-website"})
+        self.assertNotEqual(got, "SITE_ONLY")
+
+    def test_forks_are_never_site_only(self):
+        repo = _repo(name="vuejs-website", fork=True, contribution_fork=True)
+        got = githubos.classify(repo, githubos.score_repository(repo, ALL_FILES), self.NAMES)
+        self.assertEqual(got, "CONTRIBUTION_FORK")
+
+    def test_explicit_site_only_flag_wins(self):
+        repo = _repo(name="oddname", site_only=True)
+        got = githubos.classify(repo, githubos.score_repository(repo, ALL_FILES), set())
+        self.assertEqual(got, "SITE_ONLY")
+
+    def test_suffix_variants(self):
+        for name, sibling in (("acme-site", "acme"), ("acme-web", "acme"),
+                              ("website-acme", "acme"), ("site-acme", "acme")):
+            repo = _repo(name=name)
+            got = githubos.classify(
+                repo, githubos.score_repository(repo, ALL_FILES), {sibling, name}
+            )
+            self.assertEqual(got, "SITE_ONLY", name)
+
+    def test_candidate_extraction(self):
+        self.assertEqual(githubos.site_name_candidates("agentos-website")[0], "agentos")
+        self.assertEqual(githubos.site_name_candidates("website-acme")[0], "acme")
+        self.assertEqual(githubos.site_name_candidates("plain")[0], "plain")
+
+    def test_blocker_still_wins_over_site_only(self):
+        repo = _repo(name="agentos-website", security_blockers=["leaked token"])
+        got = githubos.classify(repo, githubos.score_repository(repo, ALL_FILES), self.NAMES)
+        self.assertEqual(got, "PRIVATE_BLOCKED")
+
+
+class EngineeringExclusion(unittest.TestCase):
+    def test_site_only_is_excluded_from_public_systems(self):
+        inv = githubos.build_inventory(
+            [
+                _repo(name="alpha", test_count=100),
+                _repo(name="alpha-website", test_count=0),
+                _repo(name="beta", test_count=50),
+            ],
+            {"alpha": ALL_FILES, "alpha-website": ALL_FILES, "beta": ALL_FILES},
+        )
+        self.assertEqual(inv["totals"]["public"], 3)
+        self.assertEqual(inv["totals"]["public_systems"], 2)
+        self.assertEqual(inv["totals"]["tests_engineering"], 150)
+        self.assertEqual(inv["totals"]["site_only"], 1)
+
+    def test_site_only_absent_from_generated_table(self):
+        inv = githubos.build_inventory(
+            [_repo(name="alpha"), _repo(name="alpha-website")],
+            {"alpha": ALL_FILES, "alpha-website": ALL_FILES},
+        )
+        block = githubos.render_block(inv, [])
+        self.assertIn("alpha", block)
+        self.assertNotIn("alpha-website", block)
+
+    def test_site_only_absent_from_latest_releases(self):
+        inv = githubos.build_inventory(
+            [_repo(name="alpha", latest_release="v1.0.0"),
+             _repo(name="alpha-website", latest_release="v9.9.9")],
+            {"alpha": ALL_FILES, "alpha-website": ALL_FILES},
+        )
+        block = githubos.render_block(inv, [])
+        self.assertIn("v1.0.0", block)
+        self.assertNotIn("v9.9.9", block)
+
+    def test_row_is_marked_non_engineering(self):
+        inv = githubos.build_inventory(
+            [_repo(name="alpha"), _repo(name="alpha-website")],
+            {"alpha": ALL_FILES, "alpha-website": ALL_FILES},
+        )
+        row = next(r for r in inv["repositories"] if r["name"] == "alpha-website")
+        self.assertFalse(row["is_engineering"])
+        self.assertEqual(row["classification"], "SITE_ONLY")
+
+    def test_non_engineering_set_covers_every_exclusion(self):
+        for name in ("SITE_ONLY", "CONTRIBUTION_FORK", "PUBLIC_ARCHIVE", "PRIVATE_BLOCKED"):
+            self.assertIn(name, githubos.NON_ENGINEERING)
+
+    def test_contribution_fork_counted_separately(self):
+        inv = githubos.build_inventory([
+            _repo(name="alpha"),
+            _repo(name="upstream", fork=True, contribution_fork=True),
+        ], {"alpha": ALL_FILES, "upstream": ALL_FILES})
+        self.assertEqual(inv["totals"]["contribution_forks"], 1)
+        self.assertEqual(inv["totals"]["public_systems"], 1)
+
+
 class MarkerReplacement(unittest.TestCase):
     README = (
         "# Title\n\nbefore\n\n"
