@@ -383,6 +383,117 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def _files_from_repos(repos: list) -> dict[str, list[str]]:
+    """Read root file lists carried inline on the repo objects.
+
+    An enriched snapshot (``root_files``) is self-contained, which is what
+    makes `githubos scan` runnable in CI without a second input file.
+    """
+    out: dict[str, list[str]] = {}
+    for repo in repos:
+        if not isinstance(repo, dict):
+            continue
+        name = repo.get("name")
+        files = repo.get("root_files")
+        if name and isinstance(files, list):
+            out[name] = [str(f) for f in files]
+    return out
+
+
+def cmd_githubos_scan(args: argparse.Namespace) -> int:
+    """GitHubOS scan: raw GitHub API objects -> canonical inventory."""
+    from portfolio_os import githubos
+
+    try:
+        repos = json.loads(Path(args.repos).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"githubos: cannot read repos file: {exc}", file=sys.stderr)
+        return 2
+    if not isinstance(repos, list):
+        print("githubos: repos file must be a JSON array", file=sys.stderr)
+        return 2
+
+    def _load_map(path: str | None) -> dict:
+        if not path:
+            return {}
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"githubos: cannot read {path}: {exc}", file=sys.stderr)
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    inventory = githubos.build_inventory(
+        repos,
+        files_by_repo=_load_map(args.files) or _files_from_repos(repos),
+        notes=_load_map(args.notes),
+    )
+
+    if args.out:
+        target = githubos.write_inventory(args.out, inventory)
+        print(f"inventory  {target}  ({inventory['totals']['repositories']} repos)")
+    else:
+        print(json.dumps(inventory, indent=2))
+
+    totals = inventory["totals"]
+    print()
+    print(f"  public     {totals['public']}")
+    print(f"  private    {totals['private']}")
+    print(f"  flagships  {len(inventory['flagships'])}")
+    print(f"  blocked    {len(inventory['blocked'])}")
+    for entry in inventory["blocked"]:
+        print(f"    ! {entry['name']}: {', '.join(entry['blockers'])}")
+    if inventory["stale_public"]:
+        print(f"  stale      {', '.join(inventory['stale_public'])}")
+    return 0
+
+
+def cmd_githubos_render(args: argparse.Namespace) -> int:
+    """GitHubOS render: inventory -> bounded profile block."""
+    from portfolio_os import githubos
+
+    try:
+        inventory = json.loads(Path(args.inventory).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"githubos: cannot read inventory: {exc}", file=sys.stderr)
+        return 2
+
+    pins = [p.strip() for p in args.pins.split(",") if p.strip()]
+    block = githubos.render_block(inventory, pins)
+
+    if args.print:
+        print(block)
+        return 0
+
+    profile = Path(args.profile)
+    try:
+        current = profile.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"githubos: cannot read profile: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        updated = githubos.replace_block(current, block)
+    except ValueError as exc:
+        print(f"githubos: {exc}", file=sys.stderr)
+        return 2
+
+    if args.check:
+        if updated != current:
+            print(f"githubos: {profile} is out of date. Run: portfolio githubos render")
+            return 1
+        print(f"githubos: {profile} is up to date")
+        return 0
+
+    if updated == current:
+        print(f"githubos: {profile} already current. No write, no commit, no noise.")
+        return 0
+
+    profile.write_text(updated, encoding="utf-8")
+    print(f"githubos: updated {profile}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="portfolio")
     parser.add_argument("--db", default=None)
@@ -461,6 +572,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     ecosystem = sub.add_parser("ecosystem")
     ecosystem.set_defaults(func=cmd_ecosystem)
+
+    # GitHubOS: deterministic inventory + profile rendering. No LLM.
+    githubos = sub.add_parser(
+        "githubos",
+        help="GitHub surface inventory and profile generation (deterministic)",
+    )
+    githubos_sub = githubos.add_subparsers(dest="githubos_command", required=True)
+
+    gh_scan = githubos_sub.add_parser("scan", help="repos.json -> inventory.json")
+    gh_scan.add_argument("repos", help="JSON array of GitHub repository objects")
+    gh_scan.add_argument("--files", default=None, help="JSON map of repo name -> root file names")
+    gh_scan.add_argument("--notes", default=None, help="JSON map of repo name -> note")
+    gh_scan.add_argument("--out", default=None, help="inventory output path")
+    gh_scan.set_defaults(func=cmd_githubos_scan)
+
+    gh_render = githubos_sub.add_parser("render", help="inventory.json -> profile README")
+    gh_render.add_argument("inventory")
+    gh_render.add_argument("--profile", required=True, help="profile README path to update in place")
+    gh_render.add_argument("--pins", default="", help="comma-separated flagship names in display order")
+    gh_render.add_argument("--print", action="store_true", help="write to stdout instead of the file")
+    gh_render.add_argument("--check", action="store_true", help="exit 1 if the file is out of date")
+    gh_render.set_defaults(func=cmd_githubos_render)
 
     serve = sub.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
