@@ -33,6 +33,7 @@ DUPLICATE_STATUSES = (
 
 SAFE_ACTIONS = {
     "RENAME_VERCEL_PROJECT",
+    "RENAME_VERCEL_WEBSITE",
     "RELINK_LOCAL_VERCEL",
     "UPDATE_METADATA",
 }
@@ -353,12 +354,18 @@ def classify(startup: str, local: dict, vercel: dict, deploys: dict | None = Non
     elif vercel_legacy and vercel_core:
         newer_is_legacy = (vercel_legacy.get("updated_at") or 0) > (vercel_core.get("updated_at") or 0)
         if _is_homepage_surface(vercel_legacy, legacy_dep):
+            # The canonical name belongs to the product project, so a homepage
+            # surface cannot take it. `-public` is not a description of what the
+            # project is, only of how it was created, and it leaks into every
+            # human-facing surface. Rename to the website suffix, which is what
+            # twelve projects in this portfolio already use. Architecture and
+            # resource naming are separate concerns.
             status = "WEBSITE_ONLY"
-            action = "ADOPT_AS_WEBSITE_SURFACE"
+            action = "RENAME_VERCEL_WEBSITE"
             note = (
-                f"{legacy} is not a copy of {core}: no Git link, no framework preset, "
-                f"{legacy_dep.get('total', 0) if legacy_dep else 0} deployment(s). "
-                "It is the public homepage surface."
+                f"{legacy} is the public homepage surface: no Git link, no framework "
+                f"preset, {legacy_dep.get('total', 0) if legacy_dep else 0} deployment(s), "
+                f"and {core} is the product. Rename to {core}{WEBSITE_SUFFIX}."
             )
         elif legacy_dep is not None and core_dep is None:
             status = "DUPLICATE"
