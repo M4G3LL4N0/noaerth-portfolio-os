@@ -208,7 +208,9 @@ def cmd_events(args: argparse.Namespace) -> int:
 
 def cmd_report(args: argparse.Namespace) -> int:
     kind = getattr(args, "kind_positional", None) or args.kind
-    if kind == "daily" and args.intelligence:
+    # `portfolio report daily` is the portfolio intelligence report. The legacy
+    # health dump stays available as `report weekly` or `report daily --summary`.
+    if kind == "daily" and not getattr(args, "summary", False):
         return cmd_report_daily(args)
     conn = _conn(args)
     print(write_report(conn, kind))
@@ -247,6 +249,12 @@ def cmd_report_daily(args: argparse.Namespace) -> int:
     (publish_dir / "daily.html").write_text(html_path.read_text(encoding="utf-8"), encoding="utf-8")
     if args.quiet:
         print(json.dumps(payload["counts"], indent=1))
+    elif args.json:
+        print(json.dumps(payload, indent=1))
+    elif args.html:
+        print(html_path)
+    elif args.markdown:
+        print(md_path)
     else:
         print(f"day {payload['day']}  score model v{payload['score_model_version']}")
         print(
@@ -417,9 +425,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = sub.add_parser("report")
     report.add_argument("kind_positional", nargs="?", choices=("daily", "weekly"), default=None,
-                        help="report kind. daily generates the full portfolio intelligence report")
+                        help="report kind. daily is the portfolio intelligence report")
     report.add_argument("--kind", choices=("daily", "weekly"), default="daily")
-    report.add_argument("--intelligence", action="store_true", help="generate the full daily portfolio intelligence report")
+    report.add_argument("--intelligence", action="store_true",
+                        help="explicit form of the default daily intelligence report")
+    report.add_argument("--summary", action="store_true",
+                        help="legacy health-and-queue dump instead of the intelligence report")
+    report.add_argument("--json", action="store_true", help="print the report payload to stdout")
+    report.add_argument("--html", action="store_true", help="print the path of the generated HTML")
+    report.add_argument("--markdown", action="store_true", help="print the path of the generated Markdown")
     report.add_argument("--refresh", action="store_true", help="rescan GitHub and Vercel first")
     report.add_argument("--refresh-facts", action="store_true", help="rescan repository surfaces first")
     report.add_argument("--quiet", action="store_true", help="print counts only")
@@ -1391,3 +1405,7 @@ def _print_landscape(
     else:
         print()
         print("  no candidates (dry run, or cache is warm)")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
