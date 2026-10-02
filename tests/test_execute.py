@@ -43,6 +43,14 @@ class ExecuteTests(unittest.TestCase):
         import subprocess
 
         subprocess.run(["git", "-C", str(repo), "init"], check=True, capture_output=True)
+        # Commit identity is configured on the temp repo rather than assumed
+        # from a global git config. Without this the test passes on a
+        # developer machine with user.name set and fails on CI, which has no
+        # global identity configured.
+        for key, value in (("user.email", "test@example.invalid"),
+                           ("user.name", "Portfolio OS Test")):
+            subprocess.run(["git", "-C", str(repo), "config", key, value],
+                           check=True, capture_output=True)
         subprocess.run(["git", "-C", str(repo), "add", "."], check=True, capture_output=True)
         subprocess.run(["git", "-C", str(repo), "commit", "-m", "init"], check=True, capture_output=True)
         (repo / "README.md").write_text("user edit\n", encoding="utf-8")
