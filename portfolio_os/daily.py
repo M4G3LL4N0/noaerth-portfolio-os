@@ -382,6 +382,10 @@ def build_report(
         "counts": _counts(entries),
         "portfolio": _portfolio_rollup(entries),
         "top": _top_lists(entries, conn),
+        # Also at the root: the Grokbot and Team read these as report-level
+        # facts rather than digging into the hotspot cards.
+        "external_research": _external_research_section(conn),
+        "name_collisions": _name_collision_section(conn),
         "matrix": _matrix(entries),
         "excluded_review_days": sorted(excluded_review_days),
         "delta": _delta(conn, entries, day),
@@ -499,6 +503,25 @@ def _top_lists(entries: list[dict], conn: sqlite3.Connection | None = None) -> d
         "reuse": _reuse_section(conn),
         "reuse_note": _reuse_note(conn),
         "competition": _competition_section(conn),
+        "name_collisions": _name_collision_section(conn),
+        "external_research": _external_research_section(conn),
+    }
+
+
+def _external_research_section(conn: sqlite3.Connection) -> dict:
+    """§24. How much of the portfolio has current external research."""
+    from portfolio_os import external as ex
+
+    try:
+        report = ex.coverage_report(conn)
+    except Exception:  # noqa: BLE001 - the daily report must not fail on this
+        return {"researched": 0, "stale": 0, "not_researched": 0, "pct_current": 0}
+    return {
+        "researched": report.get("researched", 0),
+        "stale": report.get("stale", 0),
+        "not_researched": report.get("not_researched", 0),
+        "pct_current": report.get("external_research_current_pct", 0),
+        "mean_leverage": report.get("reuse_leverage_mean", 0),
     }
 
 
@@ -1015,6 +1038,21 @@ def _reuse_note(conn: sqlite3.Connection | None) -> str:
         f"({report['external_research_current_pct']}% current); "
         f"{report['stale']} stale, {report['not_researched']} outstanding"
     )
+
+
+def _name_collision_section(conn: sqlite3.Connection, count: int = 5) -> list[dict]:
+    """§19. Startups whose name is already used by a significant external project."""
+    rows = conn.execute(
+        "SELECT e.slug, e.reuse_leverage, e.recommendation FROM external_landscape e"
+        " JOIN startups s ON s.id = e.startup_id"
+        " WHERE s.owner_private = 0 AND e.recommendation LIKE 'BRAND_COLLISION%'"
+        " ORDER BY e.reuse_leverage DESC LIMIT ?",
+        (count,),
+    ).fetchall()
+    return [
+        {"slug": row["slug"], "reuse_leverage": round(float(row["reuse_leverage"] or 0), 1)}
+        for row in rows
+    ]
 
 
 def _competition_section(conn: sqlite3.Connection | None, count: int = 5) -> list[dict]:
