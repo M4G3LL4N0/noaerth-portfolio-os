@@ -9,6 +9,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from portfolio_os.canonical import PUBLIC_SUFFIX, WEBSITE_SUFFIX
 from portfolio_os.db import connect, default_db_path
 from portfolio_os.engine import (
     add_event,
@@ -19,6 +20,7 @@ from portfolio_os.engine import (
     refresh_priorities,
     release_lock,
     startup_by_slug,
+    utcnow,
 )
 from portfolio_os.exclusion import OWNER_PRIVATE_LABEL, is_excluded_name
 from portfolio_os.ingest import discover, import_canonical, import_recovery, note_ledgers_read
@@ -205,9 +207,69 @@ def cmd_events(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
+    kind = getattr(args, "kind_positional", None) or args.kind
+    if kind == "daily" and args.intelligence:
+        return cmd_report_daily(args)
     conn = _conn(args)
-    print(write_report(conn, args.kind))
+    print(write_report(conn, kind))
     conn.commit()
+    return 0
+
+
+def cmd_report_daily(args: argparse.Namespace) -> int:
+    from portfolio_os.canonical import build_records, capture
+    from portfolio_os.daily import build_report, persist_scores, write_reports
+
+    conn = _conn(args)
+    root = Path(args.root)
+    scan = capture(PACKAGE_ROOT, root, _canonical_startups(conn), _vercel_team_id(root), force=bool(args.refresh))
+    records = build_records(
+        scan["startups"], scan["local"], scan["github"], scan["vercel"], scan.get("deploys")
+    )
+    persist_canonical(conn, records)
+    payload = build_report(
+        conn, root, PACKAGE_ROOT, scan, refetch_facts=bool(args.refresh_facts)
+    )
+    persist_scores(conn, payload)
+    add_event(
+        conn,
+        actor="report",
+        event_type="daily_report_generated",
+        summary=f"Daily portfolio report generated for {payload['counts']['startups']} startups",
+        visibility="TEAM",
+    )
+    conn.commit()
+    json_path, md_path, html_path = write_reports(PACKAGE_ROOT, payload)
+    publish_dir = PACKAGE_ROOT / "publish"
+    publish_dir.mkdir(parents=True, exist_ok=True)
+    (publish_dir / "daily.json").write_text(json_path.read_text(encoding="utf-8"), encoding="utf-8")
+    (publish_dir / "daily.md").write_text(md_path.read_text(encoding="utf-8"), encoding="utf-8")
+    (publish_dir / "daily.html").write_text(html_path.read_text(encoding="utf-8"), encoding="utf-8")
+    if args.quiet:
+        print(json.dumps(payload["counts"], indent=1))
+    else:
+        print(f"day {payload['day']}  score model v{payload['score_model_version']}")
+        print(
+            f"attainment {payload['portfolio']['baseline_attainment']}%  "
+            f"hot {payload['counts']['hot']}  cold {payload['counts']['cold']}  "
+            f"review {payload['counts']['review']}  ready {payload['counts']['ready']}  "
+            f"blocked {payload['counts']['blocked']}  advanced {payload['counts']['advanced']}"
+        )
+        print(json_path)
+        print(md_path)
+        print(html_path)
+    return 0
+
+
+def cmd_report_history(args: argparse.Namespace) -> int:
+    conn = _conn(args)
+    from portfolio_os.daily import history
+
+    for row in history(conn, args.startup, args.days):
+        print(
+            f"{row['day']}  attain {row['baseline_attainment']:5}  momentum {row['momentum_total']:5}  "
+            f"attention {row['attention_score']:5}  heat {row['heat']:5}"
+        )
     return 0
 
 
@@ -354,8 +416,19 @@ def build_parser() -> argparse.ArgumentParser:
     events.set_defaults(func=cmd_events)
 
     report = sub.add_parser("report")
+    report.add_argument("kind_positional", nargs="?", choices=("daily", "weekly"), default=None,
+                        help="report kind. daily generates the full portfolio intelligence report")
     report.add_argument("--kind", choices=("daily", "weekly"), default="daily")
+    report.add_argument("--intelligence", action="store_true", help="generate the full daily portfolio intelligence report")
+    report.add_argument("--refresh", action="store_true", help="rescan GitHub and Vercel first")
+    report.add_argument("--refresh-facts", action="store_true", help="rescan repository surfaces first")
+    report.add_argument("--quiet", action="store_true", help="print counts only")
     report.set_defaults(func=cmd_report)
+
+    report_history = sub.add_parser("report-history")
+    report_history.add_argument("startup")
+    report_history.add_argument("--days", type=int, default=30)
+    report_history.set_defaults(func=cmd_report_history)
 
     run = sub.add_parser("run")
     run.add_argument("--startup", default=None)
@@ -427,6 +500,36 @@ def build_parser() -> argparse.ArgumentParser:
     block.add_argument("--startup", required=True)
     block.add_argument("--reason", required=True)
     block.set_defaults(func=cmd_block)
+
+    canonical = sub.add_parser("canonical-resources")
+    canonical.add_argument("--refresh", action="store_true", help="rescan instead of using the cache")
+    canonical.add_argument("--write", action="store_true", help="write PORTFOLIO_RESOURCE_CANONICALIZATION.md")
+    canonical.add_argument("--json", action="store_true")
+    canonical.add_argument("--limit", type=int, default=0)
+    canonical.set_defaults(func=cmd_canonical_resources)
+
+    canonicalize = sub.add_parser("canonicalize")
+    canonicalize.add_argument("startup")
+    canonicalize.add_argument("--apply", action="store_true", help="perform the safe rename. no deletion")
+    canonicalize.set_defaults(func=cmd_canonicalize)
+
+    canonical_queue = sub.add_parser("canonical-queue")
+    canonical_queue.add_argument("--limit", type=int, default=40)
+    canonical_queue.set_defaults(func=cmd_canonical_queue)
+
+    landscape = sub.add_parser("landscape", help="external landscape for a startup")
+    landscape.add_argument("startup", nargs="?", default="")
+    landscape.add_argument("--refresh", action="store_true", help="ignore the cache and re-search")
+    landscape.add_argument("--all", action="store_true", help="research every uncovered startup")
+    landscape.add_argument("--batch", type=int, default=10, help="batch size for --all")
+    landscape.add_argument("--stale", action="store_true", help="list stale coverage only")
+    landscape.add_argument("--coverage", action="store_true", help="print research coverage")
+    landscape.add_argument("--opportunities", action="store_true", help="portfolio reuse view")
+    landscape.add_argument("--write", action="store_true", help="write EXTERNAL_LANDSCAPE.md")
+    landscape.add_argument("--json", action="store_true")
+    landscape.add_argument("--dry-run", action="store_true", help="score the plan without searching")
+    landscape.add_argument("--no-scout", action="store_true", help="deterministic only")
+    landscape.set_defaults(func=cmd_landscape)
 
     return parser
 
@@ -749,7 +852,542 @@ def cmd_block(args: argparse.Namespace) -> int:
     return 0
 
 
+# ------------------------------------------------------- canonical resources
+
+
+def _vercel_team_id(root: Path) -> str | None:
+    """The Vercel team already linked by local checkouts. No guesswork."""
+    for child in sorted(root.iterdir()):
+        if is_excluded_name(child.name) or not child.is_dir():
+            continue
+        link = child / ".vercel" / "project.json"
+        if not link.is_file():
+            continue
+        try:
+            payload = json.loads(link.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if payload.get("orgId"):
+            return payload["orgId"]
+    return None
+
+
+def _canonical_startups(conn: sqlite3.Connection) -> list[str]:
+    return [
+        row["slug"]
+        for row in conn.execute(
+            "SELECT slug FROM startups WHERE owner_private = 0 ORDER BY slug"
+        ).fetchall()
+    ]
+
+
+def _capture(args: argparse.Namespace, conn: sqlite3.Connection) -> dict:
+    from portfolio_os.canonical import capture
+
+    root = Path(args.root)
+    return capture(
+        PACKAGE_ROOT,
+        root,
+        _canonical_startups(conn),
+        _vercel_team_id(root),
+        force=bool(getattr(args, "refresh", False)),
+    )
+
+
+def cmd_canonical_resources(args: argparse.Namespace) -> int:
+    from portfolio_os.canonical import build_records, render_markdown, render_table
+
+    conn = _conn(args)
+    scan = _capture(args, conn)
+    records = build_records(
+        scan["startups"], scan["local"], scan["github"], scan["vercel"], scan.get("deploys")
+    )
+    records = persist_canonical(conn, records)
+    summary = canonical_summary(scan, records)
+    if args.json:
+        print(json.dumps({"summary": summary, "records": records}, indent=2))
+    else:
+        print(f"canonical startups audited: {summary['startups']}")
+        print(
+            "GitHub {total} repos / {public} *-public   local {local} repos / {lp} *-public   "
+            "Vercel {vercel} projects / {vp} *-public".format(
+                total=summary["github_total"],
+                public=summary["github_public"],
+                local=summary["local_total"],
+                lp=summary["local_public"],
+                vercel=summary["vercel_total"],
+                vp=summary["vercel_public"],
+            )
+        )
+        print(
+            f"safe renames: {summary['safe_renames']}   owner review: {summary['owner_review']}   "
+            f"destructive held: {summary['destructive_held']}"
+        )
+        print("")
+        print("\n".join(render_table(records, args.limit)))
+        if summary["safe_renames"]:
+            print("")
+            print("safe rename candidates:")
+            for record in records:
+                if record["recommended_action"] == "RENAME_VERCEL_PROJECT":
+                    print(f"  portfolio canonicalize {record['startup']} --apply")
+    if args.write:
+        root = Path(args.root)
+        path = root / "PORTFOLIO_RESOURCE_CANONICALIZATION.md"
+        path.write_text(render_markdown(records, summary), encoding="utf-8")
+        print("")
+        print(f"wrote {path}")
+    conn.commit()
+    return 0
+
+
+def cmd_canonicalize(args: argparse.Namespace) -> int:
+    from portfolio_os.canonical import (
+        CanonicalError,
+        relink_local_vercel,
+        vercel_project_detail,
+        vercel_rename,
+    )
+
+    conn = _conn(args)
+    root = Path(args.root)
+    if is_excluded_name(args.startup):
+        print(OWNER_PRIVATE_LABEL)
+        return 0
+    row = startup_by_slug(conn, args.startup)
+    if row is None or row["owner_private"]:
+        print("not found")
+        return 1
+
+    scan = _capture(args, conn)
+    record = conn.execute(
+        "SELECT * FROM canonical_resources WHERE slug = ?", (args.startup,)
+    ).fetchone()
+    if record is None:
+        from portfolio_os.canonical import build_records
+
+        records = build_records(
+            scan["startups"], scan["local"], scan["github"], scan["vercel"], scan.get("deploys")
+        )
+        persist_canonical(conn, records)
+        conn.commit()
+        record = conn.execute(
+            "SELECT * FROM canonical_resources WHERE slug = ?", (args.startup,)
+        ).fetchone()
+
+    print(f"{args.startup}  {record['duplicate_status']}  {record['recommended_action']}")
+    if record["note"]:
+        print(record["note"])
+
+    legacy = record["vercel_public"]
+    core = record["vercel_core"] or args.startup
+
+    if record["recommended_action"] != "RENAME_VERCEL_PROJECT" or not legacy:
+        if record["recommended_action"] in {"MERGE_REVIEW", "ARCHIVE_CANDIDATE"}:
+            enqueue(
+                conn,
+                args.startup,
+                "vercel",
+                "RECONCILE_DUPLICATE",
+                record["note"] or record["recommended_action"],
+                risk="REVIEW",
+                evidence=json.dumps({"legacy": legacy, "core": core}),
+            )
+            print("queued for owner review. no automatic action taken")
+        else:
+            print("no safe action available. inspect manually")
+        conn.commit()
+        return 0
+
+    if not args.apply:
+        before = vercel_project_detail(legacy, _vercel_team_id(root))
+        print("dry run. nothing changed")
+        print(f"  would rename vercel {legacy} -> {core}")
+        print(f"  project id stays {before['id']}")
+        print(f"  env vars preserved: {before['env_count']}")
+        print(f"  git link: {before['link_type']} {before['link_repo'] or 'none'}")
+        print(f"  apply with: portfolio canonicalize {args.startup} --apply")
+        return 0
+
+    team = _vercel_team_id(root)
+    before = vercel_project_detail(legacy, team)
+    result = vercel_rename(legacy, core, team)
+    after = vercel_project_detail(core, team)
+    relinked = relink_local_vercel(root, result["project_id"], core)
+    conn.execute(
+        """
+        UPDATE canonical_resources
+        SET vercel_core = ?, vercel_core_id = ?, vercel_public = '', vercel_public_id = '',
+            duplicate_status = 'NONE', recommended_action = 'NONE',
+            production_domain = ?, note = ?, scanned_at = datetime('now')
+        WHERE slug = ?
+        """,
+        (
+            core,
+            result["project_id"],
+            (after["targets"].get("production") or {}).get("alias", [""])[0]
+            if (after["targets"].get("production") or {}).get("alias")
+            else "",
+            f"renamed from {legacy} at {utcnow()}",
+            args.startup,
+        ),
+    )
+    conn.execute(
+        "UPDATE startups SET vercel_project = ? WHERE slug = ?", (core, args.startup)
+    )
+    enqueue(
+        conn,
+        args.startup,
+        "vercel",
+        "RENAME_VERCEL_PROJECT",
+        f"{legacy} -> {core}",
+        risk="SAFE",
+        evidence=json.dumps(
+            {
+                "project_id_before": before["id"],
+                "project_id_after": after["id"],
+                "env_preserved": before["env_count"] == after["env_count"],
+                "relinked_local": relinked,
+            }
+        ),
+    )
+    add_event(
+        conn,
+        startup_id=row["id"],
+        actor="canonicalize",
+        event_type="identity_canonicalized",
+        summary=f"Vercel project {legacy} renamed to {core}",
+        visibility="TEAM",
+    )
+    conn.commit()
+    print(f"renamed {legacy} -> {core}")
+    print(f"project id unchanged: {result['project_id']}")
+    print(f"env vars preserved: {before['env_count']} -> {after['env_count']}")
+    print(f"local checkouts relinked: {len(relinked)}")
+    return 0
+
+
+def cmd_canonical_queue(args: argparse.Namespace) -> int:
+    conn = _conn(args)
+    rows = conn.execute(
+        """
+        SELECT id, slug, surface, operation, risk, state, reason, created_at
+        FROM canonicalization_queue ORDER BY id DESC LIMIT ?
+        """,
+        (args.limit,),
+    ).fetchall()
+    for row in rows:
+        print(f"{row['id']:4}  {row['state']:8} {row['risk']:6} {row['slug']:22} {row['operation']:24} {row['reason'][:60]}")
+    return 0
+
+
+def persist_canonical(conn: sqlite3.Connection, records: list[dict]) -> list[dict]:
+    for record in records:
+        conn.execute(
+            """
+            INSERT INTO canonical_resources
+              (slug, local_core_repo, local_website_repo, github_core, github_core_id,
+               github_public, vercel_core, vercel_core_id, vercel_public, vercel_public_id,
+               production_domain, production_branch, production_commit, github_remote,
+               duplicate_status, recommended_action, note, scan_model_version, scanned_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1, datetime('now'))
+            ON CONFLICT(slug) DO UPDATE SET
+              local_core_repo=excluded.local_core_repo,
+              local_website_repo=excluded.local_website_repo,
+              github_core=excluded.github_core,
+              github_core_id=excluded.github_core_id,
+              github_public=excluded.github_public,
+              vercel_core=excluded.vercel_core,
+              vercel_core_id=excluded.vercel_core_id,
+              vercel_public=excluded.vercel_public,
+              vercel_public_id=excluded.vercel_public_id,
+              production_domain=excluded.production_domain,
+              production_branch=excluded.production_branch,
+              production_commit=excluded.production_commit,
+              github_remote=excluded.github_remote,
+              duplicate_status=excluded.duplicate_status,
+              recommended_action=excluded.recommended_action,
+              note=excluded.note,
+              scanned_at=excluded.scanned_at
+            """,
+            (
+                record["startup"],
+                record.get("local_core_repo", ""),
+                record.get("local_website_repo", ""),
+                record.get("github_core", ""),
+                record.get("github_core_id", ""),
+                record.get("github_public", ""),
+                record.get("vercel_core", ""),
+                record.get("vercel_core_id", ""),
+                record.get("vercel_public", ""),
+                record.get("vercel_public_id", ""),
+                record.get("production_domain", ""),
+                record.get("production_branch", ""),
+                record.get("production_commit", ""),
+                record.get("github_remote", ""),
+                record.get("duplicate_status", "UNKNOWN"),
+                record.get("recommended_action", "NONE"),
+                record.get("note", ""),
+            ),
+        )
+    conn.commit()
+    return records
+
+
+def canonical_summary(scan: dict, records: list[dict]) -> dict:
+    local = scan["local"]
+    github = scan["github"]
+    vercel = scan["vercel"]
+    statuses: dict[str, int] = {}
+    actions: dict[str, int] = {}
+    for record in records:
+        statuses[record["duplicate_status"]] = statuses.get(record["duplicate_status"], 0) + 1
+        actions[record["recommended_action"]] = actions.get(record["recommended_action"], 0) + 1
+    return {
+        "startups": len(records),
+        "github_total": len(github),
+        "github_public": sum(1 for name in github if name.endswith(PUBLIC_SUFFIX)),
+        "local_total": len(local),
+        "local_public": sum(1 for name in local if name.endswith(PUBLIC_SUFFIX)),
+        "local_website": sum(1 for name in local if name.endswith(WEBSITE_SUFFIX)),
+        "vercel_total": len(vercel),
+        "vercel_public": sum(1 for name in vercel if name.endswith(PUBLIC_SUFFIX)),
+        "vercel_public_orphan": actions.get("RENAME_VERCEL_PROJECT", 0),
+        "vercel_public_dup": statuses.get("DUPLICATE", 0),
+        "vercel_public_website_only": statuses.get("WEBSITE_ONLY", 0),
+        "vercel_public_superseded": statuses.get("SUPERSEDED", 0),
+        "safe_renames": actions.get("RENAME_VERCEL_PROJECT", 0),
+        "owner_review": actions.get("MERGE_REVIEW", 0) + statuses.get("UNKNOWN", 0),
+        "destructive_held": actions.get("ARCHIVE_CANDIDATE", 0),
+        "statuses": statuses,
+        "actions": actions,
+    }
+
+
+def enqueue(
+    conn: sqlite3.Connection,
+    slug: str,
+    surface: str,
+    operation: str,
+    reason: str,
+    risk: str = "REVIEW",
+    evidence: str = "",
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO canonicalization_queue (slug, surface, operation, reason, risk, evidence, created_at)
+        VALUES (?,?,?,?,?,?, datetime('now'))
+        """,
+        (slug, surface, operation, reason, risk, evidence),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
+    from portfolio_os.canonical import CanonicalError
+
     parser = build_parser()
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except CanonicalError as exc:
+        print(f"canonicalization stopped: {exc}", file=sys.stderr)
+        return 1
+
+
+def _landscape_root(args: argparse.Namespace) -> Path:
+    return Path(getattr(args, "root", None) or os.environ.get("PORTFOLIO_ROOT") or Path.cwd())
+
+
+def cmd_landscape(args: argparse.Namespace) -> int:
+    """External intelligence: what already exists, what we can reuse (§1-§30)."""
+    from portfolio_os import external as ex
+
+    conn = _conn(args)
+    root = _landscape_root(args)
+
+    if args.coverage:
+        report = ex.coverage_report(conn)
+        if args.json:
+            print(json.dumps(report, indent=2))
+        else:
+            print("EXTERNAL RESEARCH COVERAGE")
+            print(f"  total                {report['total']}")
+            print(f"  RESEARCHED          {report['researched']}")
+            print(f"  STALE               {report['stale']}")
+            print(f"  NOT RESEARCHED      {report['not_researched']}")
+            print(f"  EXTERNAL_RESEARCH_CURRENT  {report['external_research_current_pct']}%")
+            print(f"  mean reuse leverage {report['reuse_leverage_mean']}")
+        conn.commit()
+        return 0
+
+    if args.opportunities:
+        buckets = ex.portfolio_opportunities(conn)
+        if args.json:
+            print(json.dumps(buckets, indent=2))
+        else:
+            print("PORTFOLIO EXTERNAL OPPORTUNITIES")
+            for bucket in buckets.values():
+                print(f"\n{bucket['title']}  ({bucket['count']})")
+                for item in bucket["items"][:12]:
+                    print(f"  {item['slug']:<34} leverage {item['reuse_leverage'] or 0}")
+                if not bucket["items"]:
+                    print("  none yet")
+        conn.commit()
+        return 0
+
+    if args.stale:
+        report = ex.coverage_report(conn)
+        slugs = report["stale_slugs"] + report["not_researched_slugs"]
+        if args.json:
+            print(json.dumps({"stale": report["stale_slugs"],
+                              "not_researched": report["not_researched_slugs"]}, indent=2))
+        else:
+            print(f"STALE ({len(report['stale_slugs'])})")
+            for slug in report["stale_slugs"]:
+                print(f"  {slug}")
+            print(f"\nNOT RESEARCHED ({len(report['not_researched_slugs'])})")
+            for slug in report["not_researched_slugs"][:80]:
+                print(f"  {slug}")
+            if len(report["not_researched_slugs"]) > 80:
+                print(f"  ... and {len(report['not_researched_slugs']) - 80} more")
+        conn.commit()
+        return 0
+
+    scout = None if args.no_scout else _maybe_scout(conn, args)
+
+    if args.all:
+        return _landscape_all(conn, args, root, scout)
+
+    if not args.startup:
+        report = ex.coverage_report(conn)
+        print("usage: portfolio landscape <startup> | --all | --stale | --coverage | --opportunities")
+        print(f"coverage: {report['researched']}/{report['total']} researched, "
+              f"{report['external_research_current_pct']}% current")
+        conn.commit()
+        return 0
+
+    startup = conn.execute(
+        "SELECT * FROM startups WHERE slug = ? OR name = ?", (args.startup, args.startup)
+    ).fetchone()
+    if startup is None:
+        print(f"startup not found: {args.startup}", file=sys.stderr)
+        conn.commit()
+        return 1
+
+    result = ex.research_startup(
+        conn, startup, root, force=bool(args.refresh),
+        scout=scout, dry_run=bool(args.dry_run),
+    )
+    if result.error:
+        print(result.error, file=sys.stderr)
+        conn.commit()
+        return 1
+    if args.write:
+        result.artifact_path = ex.write_artifact(conn, result.slug, root)
+        conn.commit()
+    _print_landscape(conn, result, root, args)
+    conn.commit()
+    return 0
+
+
+def _maybe_scout(conn: sqlite3.Connection, args: argparse.Namespace):
+    from portfolio_os.scout import EcosystemScout
+
+    scout = EcosystemScout(conn, enabled=not bool(getattr(args, "no_scout", False)))
+    return scout if scout.available() else None
+
+
+def _landscape_all(
+    conn: sqlite3.Connection, args: argparse.Namespace, root: Path, scout
+) -> int:
+    """§28. Batch by coverage shard so development keeps running alongside."""
+    from portfolio_os import external as ex
+
+    rows = conn.execute(
+        "SELECT s.*, COALESCE(c.shard, '') shard FROM startups s"
+        " LEFT JOIN startup_coverage c ON c.startup_id = s.id"
+        " WHERE s.owner_private = 0 AND s.slug != ? ORDER BY c.shard, s.slug",
+        (OWNER_PRIVATE_LABEL,),
+    ).fetchall()
+    report = ex.coverage_report(conn)
+    pending = [
+        r for r in rows
+        if ex.coverage_state(
+            {"searched_at": _landscape_searched(conn, r["id"])}
+        ) in (ex.STALE, ex.NOT_RESEARCHED)
+    ]
+    batch = pending[: max(1, args.batch)]
+    print(f"coverage {report['researched']}/{report['total']} researched; "
+          f"researching {len(batch)} of {len(pending)} outstanding")
+    for startup in batch:
+        try:
+            result = ex.research_startup(conn, startup, root, scout=scout,
+                                         dry_run=bool(args.dry_run))
+        except Exception as exc:  # noqa: BLE001 - one bad startup must not stop the batch
+            print(f"  {startup['slug']}: error {exc}")
+            continue
+        conn.commit()
+        counts = result.counts()
+        print(f"  {startup['slug']:<32} leverage {result.leverage:>5} "
+              f"oss {counts['high_fit_oss']} comp {counts['direct_competitors']} "
+              f"({result.api_calls} api, {result.cache_hits} cached)")
+    remaining = ex.coverage_report(conn)
+    print(f"\ncoverage now {remaining['researched']}/{remaining['total']} "
+          f"({remaining['external_research_current_pct']}% current)")
+    return 0
+
+
+def _landscape_searched(conn: sqlite3.Connection, startup_id: int) -> str | None:
+    row = conn.execute(
+        "SELECT searched_at FROM external_landscape WHERE startup_id = ?", (startup_id,)
+    ).fetchone()
+    return row["searched_at"] if row else None
+
+
+def _print_landscape(
+    conn: sqlite3.Connection, result: object, root: Path, args: argparse.Namespace
+) -> None:
+    from portfolio_os import external as ex
+
+    slug = getattr(result, "slug", "")
+    if getattr(result, "candidates", None):
+        landscape = ex.load_landscape(conn, slug)
+    else:
+        plan = getattr(result, "plan", None)
+        landscape = {
+            "slug": slug,
+            "summary": getattr(plan, "one_liner", "") if plan else "",
+            "primary_workflow": getattr(plan, "primary_workflow", "") if plan else "",
+            "reuse_leverage": getattr(result, "leverage", 0.0),
+            "searched_at": "",
+            "coverage": "NOT_RESEARCHED",
+            "queries": getattr(plan, "queries", []) if plan else [],
+            "scout_used": getattr(result, "scout_used", False),
+            "scout_model": getattr(result, "scout_model", ""),
+            "candidates": [],
+            "recommendation": "nothing researched yet",
+        }
+    if args.json:
+        print(json.dumps(landscape, indent=2, default=str))
+        return
+    print(f"EXTERNAL LANDSCAPE  {slug}")
+    print(f"  leverage        {landscape.get('reuse_leverage') or 0}/100")
+    print(f"  queries         {len(landscape.get('queries') or [])}")
+    print(f"  candidates      {len(landscape.get('candidates') or [])}")
+    print(f"  coverage        {landscape.get('coverage')}")
+    if getattr(result, "artifact_path", ""):
+        print(f"  artifact        {result.artifact_path}")
+    print()
+    print(f"RECOMMENDATION: {landscape.get('recommendation')}")
+    strong = sorted(landscape.get("candidates") or [], key=lambda c: -c.get("reuse_fit", 0))[:10]
+    if strong:
+        print()
+        print("  project                          type                  fit  license       decision")
+        for item in strong:
+            name = (item.get("name") or item.get("repo") or "")[:30]
+            print(f"  {name:<32} {item['classification'][:18]:<20} "
+                  f"{item.get('reuse_fit', 0):>3}  "
+                  f"{(item.get('license_spdx') or 'none')[:11]:<11}  {item.get('reuse_decision')}")
+    else:
+        print()
+        print("  no candidates (dry run, or cache is warm)")

@@ -60,6 +60,26 @@ def _authorized(headers: dict, token: str) -> bool:
     return False
 
 
+def _daily_view() -> tuple[int, dict]:
+    """Serve the generated report file, never the database.
+
+    The generated JSON is the bridge between the local control plane and any
+    remote reader. Nothing here opens SQLite and nothing is computed on request.
+    """
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "publish" / "daily.json"
+    if not path.is_file():
+        return 404, {"error": "no_daily_report", "hint": "run: portfolio report daily --intelligence"}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 503, {"error": "daily_report_unreadable"}
+    if "openlegal" in json.dumps(payload).lower():
+        return 503, {"error": "daily_report_failed_sanitizer"}
+    return 200, payload
+
+
 def _form(raw: bytes) -> dict:
     parsed = parse_qs(raw.decode("utf-8"), keep_blank_values=True)
     return {key: values[0] if values else "" for key, values in parsed.items()}
@@ -67,6 +87,7 @@ def _form(raw: bytes) -> dict:
 
 UI_PATHS = {
     "/",
+    "/opportunities",
     "/workers",
     "/agents",
     "/queue",
@@ -94,6 +115,25 @@ def dispatch(conn: sqlite3.Connection, method: str, path: str, headers: dict, bo
         return 401, {"error": "unauthorized"}
     if path == "/api/v1/health" and method == "GET":
         return 200, {"ok": True, "schema": SCHEMA_VERSION}
+    if path == "/api/v1/daily" and method == "GET":
+        return _daily_view()
+    if path == "/api/v1/opportunities" and method == "GET":
+        from portfolio_os.external import coverage_report, portfolio_opportunities
+
+        return 200, {"opportunities": portfolio_opportunities(conn),
+                     "coverage": coverage_report(conn)}
+    if path == "/api/v1/landscape/coverage" and method == "GET":
+        from portfolio_os.external import coverage_report
+
+        return 200, coverage_report(conn)
+    if path.startswith("/api/v1/landscape/") and method == "GET":
+        from portfolio_os.external import load_landscape
+
+        slug = path.rsplit("/", 1)[-1]
+        landscape = load_landscape(conn, slug)
+        if landscape is None:
+            return 404, {"error": "not_researched", "slug": slug}
+        return 200, landscape
     if path != "/api/v1/actions" or method != "POST":
         return 404, {"error": "not_found"}
     payload = body or {}

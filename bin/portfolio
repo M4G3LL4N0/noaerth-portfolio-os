@@ -1,3 +1,13 @@
 #!/bin/sh
-cd "$(dirname "$0")/.." || exit 1
-exec python3 -m portfolio_os "$@"
+# Resolve through symlinks so `portfolio` works from anywhere on PATH.
+target=$0
+while [ -L "$target" ]; do
+  link=$(readlink "$target")
+  case $link in
+    /*) target=$link ;;
+    *) target=$(dirname "$target")/$link ;;
+  esac
+done
+root=$(cd "$(dirname "$target")/.." && pwd)
+cd "$root" || exit 1
+PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m portfolio_os "$@"
