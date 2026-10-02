@@ -211,6 +211,17 @@ CREATE TABLE IF NOT EXISTS landscape_candidates (
   UNIQUE(startup_id, source, repo)
 );
 
+CREATE TABLE IF NOT EXISTS landscape_sources (
+    slug TEXT NOT NULL,
+    startup_id INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT '',
+    results INTEGER NOT NULL DEFAULT 0,
+    elapsed_ms INTEGER NOT NULL DEFAULT 0,
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (startup_id, source)
+);
+
 CREATE TABLE IF NOT EXISTS landscape_queries (
   id INTEGER PRIMARY KEY,
   slug TEXT NOT NULL,

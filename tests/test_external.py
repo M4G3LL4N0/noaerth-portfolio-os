@@ -5,12 +5,14 @@ interesting: never claim more than was retrieved, never classify a weak signal a
 high fit, never auto-authorise a fork, never reuse without a license.
 """
 
+import shutil
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
 from portfolio_os import external as ex
+from portfolio_os import scout as scout_module
 from portfolio_os.db import connect
 from portfolio_os.scout import EcosystemScout, IntegrationEngineer
 
@@ -211,12 +213,25 @@ class TestClassificationDiscipline(unittest.TestCase):
         classification, _ = ex.classify_candidate(candidate, plan, fit, factors)
         self.assertIn(classification, (ex.ABANDONED_BUT_USEFUL, ex.HIGH_FIT_OPEN_SOURCE))
 
-    def test_proprietary_with_high_fit_is_a_license_risk(self):
+    def test_proprietary_on_domain_project_is_a_competitor(self):
+        # Closed source doing the same job: visible competition, no reuse.
         candidate = self._candidate(license_spdx="NOASSERTION")
         plan = _rich_plan()
         fit, factors = ex.reuse_fit(candidate, plan)
-        candidate.classification, _ = ex.classify_candidate(candidate, plan, fit, factors)
-        self.assertEqual(candidate.classification, ex.LICENSE_RISK)
+        classification, reason = ex.classify_candidate(candidate, plan, fit, factors)
+        self.assertEqual(classification, ex.DIRECT_COMPETITOR)
+        self.assertIn("differentiate", reason.lower())
+
+    def test_off_domain_project_is_never_a_competitor(self):
+        # Closed source alone is not competition; it must also be on-domain.
+        candidate = self._candidate(license_spdx="NOASSERTION",
+                                    description="database migration utility",
+                                    topics=["database"], name="migrator")
+        plan = _rich_plan()
+        fit, factors = ex.reuse_fit(candidate, plan)
+        classification, _ = ex.classify_candidate(candidate, plan, fit, factors)
+        self.assertNotEqual(classification, ex.DIRECT_COMPETITOR)
+        self.assertNotEqual(classification, ex.HIGH_FIT_OPEN_SOURCE)
 
 
 class TestReuseDecision(unittest.TestCase):
@@ -350,6 +365,13 @@ class TestCoverageAndTTL(unittest.TestCase):
         self.assertEqual(report["external_research_current_pct"], 0.0)
 
 
+def _relevant(name, repo=None):
+    """A candidate that actually spoke the domain (not a name-match)."""
+    candidate = ex.Candidate(repo=repo or f"a/{name}", name=name)
+    candidate.classification = ex.HIGH_FIT_OPEN_SOURCE
+    return candidate
+
+
 class TestSurveyConfidence(unittest.TestCase):
     def _result(self, candidates, dropped, api=1, cached=0):
         return ex.LandscapeResult(
@@ -369,16 +391,25 @@ class TestSurveyConfidence(unittest.TestCase):
         self.assertIn("CONTINUE CUSTOM", result.recommendation())
 
     def test_healthy_survey_is_good(self):
-        candidates = [ex.Candidate(repo=f"a/{i}", name=str(i)) for i in range(5)]
+        candidates = [_relevant(str(i)) for i in range(5)]
         result = self._result(candidates, [])
         self.assertEqual(result.survey_confidence(), "GOOD")
+
+    def test_breadth_without_relevance_is_still_thin(self):
+        """Several sources all returning noise is not a healthy survey."""
+        candidates = [ex.Candidate(repo=f"a/{i}", name=str(i)) for i in range(6)]
+        result = self._result(candidates, [])
+        result.sources_consulted = ["github", "npm", "pypi", "crates"]
+        self.assertEqual(result.survey_confidence(), "THIN")
+        self.assertIn("INSUFFICIENT EVIDENCE", result.recommendation())
 
 
 class TestRecommendation(unittest.TestCase):
     def _result(self, leverage, candidates=None, **counts):
         if candidates is None:
-            # A survey that actually looked: confidence must not short-circuit.
-            candidates = [ex.Candidate(repo=f"a/{i}", name=str(i)) for i in range(5)]
+            # A survey that actually found relevant work: confidence must not
+            # short-circuit the substantive recommendation.
+            candidates = [_relevant(str(i)) for i in range(5)]
         result = ex.LandscapeResult(
             slug="alpha", startup_id=1, plan=_plan(), candidates=candidates, dropped=[],
             leverage=leverage, queries_run=["q"], api_calls=1,
@@ -399,7 +430,7 @@ class TestRecommendation(unittest.TestCase):
                                  name="EvalForge", stars=210)
         candidate.classification = ex.NAME_COLLISION
         recommendation = self._result(50.0, candidates=[candidate] + [
-            ex.Candidate(repo=f"a/{i}", name=str(i)) for i in range(4)
+            _relevant(str(i)) for i in range(4)
         ]).recommendation()
         self.assertIn("BRAND_COLLISION_REVIEW", recommendation)
         self.assertIn("Do not rename automatically", recommendation)
@@ -478,9 +509,23 @@ class TestSecuritySignals(unittest.TestCase):
 
 
 class TestScout(unittest.TestCase):
-    def test_scout_is_off_when_no_endpoint(self):
-        scout = EcosystemScout(enabled=True)
-        self.assertFalse(scout.available())
+    def test_scout_is_off_when_disabled(self):
+        # The disabled path must be off on any machine. Asserting the enabled
+        # path instead would depend on whether opencode happens to be installed.
+        self.assertFalse(EcosystemScout(enabled=False).available())
+
+    def test_scout_is_off_without_a_reachable_model(self):
+        # Both reachability signals are removed, so the result cannot depend on
+        # what happens to be installed on the machine running the suite.
+        original_which = shutil.which
+        original_endpoint = scout_module._model_endpoint
+        try:
+            shutil.which = lambda _name: None
+            scout_module._model_endpoint = lambda: None
+            self.assertFalse(EcosystemScout(enabled=True).available())
+        finally:
+            shutil.which = original_which
+            scout_module._model_endpoint = original_endpoint
 
     def test_scout_skips_a_thin_shortlist(self):
         scout = EcosystemScout(enabled=True)

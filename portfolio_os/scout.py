@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 from typing import Any
 
@@ -79,9 +78,12 @@ class EcosystemScout:
 
     # --- capability --------------------------------------------------------
     def available(self) -> bool:
-        if not self.enabled:
-            return False
-        return _model_endpoint() is not None or shutil.which("opencode") is not None
+        """Requires an explicit endpoint.
+
+        An ambient agent binary on PATH is not consent to spend model calls on
+        portfolio research; the Scout stays off until someone configures it.
+        """
+        return bool(self.enabled and _model_endpoint())
 
     # --- review ------------------------------------------------------------
     def review(self, plan: Any, candidates: list[Any]) -> dict[str, str]:
@@ -228,9 +230,7 @@ class IntegrationEngineer:
         self.calls = 0
 
     def available(self) -> bool:
-        return self.enabled and (
-            _model_endpoint() is not None or shutil.which("opencode") is not None
-        )
+        return bool(self.enabled and _model_endpoint())
 
     def plan(self, candidate: dict[str, Any], startup: dict[str, Any]) -> dict[str, Any]:
         """Produce an integration plan, or a deterministic fallback."""

@@ -97,8 +97,31 @@ Team:
 - `PORTFOLIO_OS_TEAM_FILE` or `PORTFOLIO_OS_TEAM_URL` plus `PORTFOLIO_OS_READ_TOKEN`
 - Writes from the website proxy to `PORTFOLIO_OS_WRITE_URL` only when `PORTFOLIO_OS_API_TOKEN` is set. Otherwise the action route returns 501 and the CLI remains the write path.
 
+## External intelligence
+
+The fourth lane: what already exists elsewhere, what can be reused, who competes.
+
+```sh
+portfolio landscape evalforge            # research one startup
+portfolio landscape --all --batch 10     # batch by coverage shard
+portfolio landscape --coverage           # portfolio research coverage
+portfolio landscape --opportunities      # reuse / competition / name collisions
+portfolio landscape evalforge --write    # EXTERNAL_LANDSCAPE.md
+```
+
+Each startup receives a structured external landscape with an `EXTERNAL_LANDSCAPE.md`
+artifact. `REUSE_FIT` (0–100) scores ten recorded factors; `REUSE_LEVERAGE`
+(0–100) summarises how much of the intended implementation already exists.
+
+Nothing self-authorises. The strongest recommendation is `OWNER_REVIEW`, which
+creates an `EXTERNAL_REUSE_REVIEW` work item for a human. Integration work is
+only created after that review. `INTEGRATION_ENGINEER` never writes safety,
+payment, auth or spending controls.
+
+See `docs/EXTERNAL_INTELLIGENCE.md`.
+
 ## Tests
 
 ```sh
-PYTHONPATH=. python3 -m unittest tests.test_os
+PYTHONPATH=. python3 -m unittest discover -s tests
 ```

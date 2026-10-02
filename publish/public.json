@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-28T04:27:40+00:00",
+  "generated_at": "2026-10-01T20:42:50+00:00",
   "pulse": {
     "public_projects": 130,
-    "in_review": 123,
+    "in_review": 64,
     "public_notes": 4
   },
   "now_building": [
@@ -252,7 +252,7 @@
     {
       "slug": "cannex-logistics",
       "name": "cannex-logistics",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -266,7 +266,7 @@
     {
       "slug": "childdevos",
       "name": "childdevos",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -294,7 +294,7 @@
     {
       "slug": "cleanstack-os",
       "name": "CleanStackOS",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -308,7 +308,7 @@
     {
       "slug": "commos",
       "name": "commos",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -392,14 +392,14 @@
     {
       "slug": "enterprisepilot",
       "name": "enterprisepilot",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "evalforge",
       "name": "evalforge",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -448,7 +448,7 @@
     {
       "slug": "founderskingdom",
       "name": "founderskingdom",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -469,7 +469,7 @@
     {
       "slug": "fungmind",
       "name": "fungmind",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
@@ -546,49 +546,49 @@
     {
       "slug": "hackerzart",
       "name": "hackerzart",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "happyblock",
       "name": "happyblock",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "imessage",
       "name": "imessage",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
     {
       "slug": "interceptorgrid",
       "name": "interceptorgrid",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "lagrangeos",
       "name": "lagrangeos",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "ledgerops-ai",
       "name": "ledgerops-ai",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "legacybridge",
       "name": "legacybridge",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -602,70 +602,70 @@
     {
       "slug": "loopcompute-cloud",
       "name": "loopcompute-cloud",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "lost-bag",
       "name": "lost-bag",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
     {
       "slug": "lunarfoundry",
       "name": "lunarfoundry",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "luvconvos",
       "name": "luvconvos",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "luvpartnr",
       "name": "luvpartnr",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "luvstories",
       "name": "luvstories",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
     {
       "slug": "modex",
       "name": "modex",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "morphui",
       "name": "morphui",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "n1-therapeutics",
       "name": "n1-therapeutics",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "naextblock",
       "name": "naextblock",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -679,7 +679,7 @@
     {
       "slug": "nex-robotix",
       "name": "nex-robotix",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
@@ -693,14 +693,14 @@
     {
       "slug": "obviouslybad",
       "name": "obviouslybad",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "oddbotix",
       "name": "oddbotix",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
@@ -721,21 +721,21 @@
     {
       "slug": "opsautopilot",
       "name": "opsautopilot",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "orbitchip",
       "name": "orbitchip",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "orbitprint",
       "name": "orbitprint",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -763,35 +763,35 @@
     {
       "slug": "poolwater",
       "name": "poolwater",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "psychemap",
       "name": "psychemap",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "readablestack",
       "name": "readablestack",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "redwoud",
       "name": "redwoud",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "requestayo",
       "name": "requestayo",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -805,14 +805,14 @@
     {
       "slug": "saeturtle",
       "name": "saeturtle",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "saus",
       "name": "saus",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -833,42 +833,42 @@
     {
       "slug": "siliconcontrol-tower",
       "name": "siliconcontrol-tower",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "soulmayte",
       "name": "soulmayte",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "spacecompute-cloud",
       "name": "spacecompute-cloud",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "spaceedu",
       "name": "SpaceEdu",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "spouwse",
       "name": "spouwse",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "startupquick",
       "name": "startupquick",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -882,42 +882,42 @@
     {
       "slug": "strxngth",
       "name": "strxngth",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "sunsetx",
       "name": "sunsetx",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "supplyos-ai",
       "name": "supplyos-ai",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "swarmshield",
       "name": "swarmshield",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
     {
       "slug": "tempoos",
       "name": "tempoos",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
     {
       "slug": "therapyux",
       "name": "therapyux",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
@@ -938,14 +938,14 @@
     {
       "slug": "trustxverify",
       "name": "trustxverify",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
     {
       "slug": "useros",
       "name": "useros",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
@@ -959,7 +959,7 @@
     {
       "slug": "valuedsociety",
       "name": "valuedsociety",
-      "public_status": "In review",
+      "public_status": "In design",
       "url": null,
       "github": null
     },
@@ -973,14 +973,14 @@
     {
       "slug": "venturerank-os",
       "name": "venturerank-os",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "vizuler",
       "name": "vizuler",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
@@ -994,28 +994,28 @@
     {
       "slug": "workflowcanvas",
       "name": "workflowcanvas",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "youareprofound",
       "name": "youareprofound",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "youstate",
       "name": "youstate",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     },
     {
       "slug": "zaeux",
       "name": "zaeux",
-      "public_status": "In review",
+      "public_status": "Release queued",
       "url": null,
       "github": null
     }
