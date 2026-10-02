@@ -531,6 +531,12 @@ def build_parser() -> argparse.ArgumentParser:
     canonical_queue.add_argument("--limit", type=int, default=40)
     canonical_queue.set_defaults(func=cmd_canonical_queue)
 
+    canonical_status = sub.add_parser(
+        "canonical-status",
+        help="final disposition of every remaining *-public resource",
+    )
+    canonical_status.set_defaults(func=cmd_canonical_status)
+
     landscape = sub.add_parser("landscape", help="external landscape for a startup")
     landscape.add_argument("startup", nargs="?", default="")
     landscape.add_argument("--refresh", action="store_true", help="ignore the cache and re-search")
@@ -1092,6 +1098,81 @@ def cmd_canonical_queue(args: argparse.Namespace) -> int:
     ).fetchall()
     for row in rows:
         print(f"{row['id']:4}  {row['state']:8} {row['risk']:6} {row['slug']:22} {row['operation']:24} {row['reason'][:60]}")
+
+
+def cmd_canonical_status(args: argparse.Namespace) -> int:
+    """§55. Final disposition of every remaining `*-public` resource.
+
+    CANONICALIZED  the safe rename already happened
+    OWNER_REVIEW   a decision is required before anything else happens
+    ARCHIVED       nothing left to do beyond archiving
+    DELETE_READY   verified as redundant; deletion still needs explicit approval
+    """
+    conn = _conn(args)
+    done = {
+        row["slug"]: row
+        for row in conn.execute(
+            "SELECT slug, surface, operation, evidence FROM canonicalization_queue"
+            " WHERE state = 'done' OR risk = 'SAFE'"
+        ).fetchall()
+    }
+    states: dict[str, list[tuple[str, str]]] = {
+        "CANONICALIZED": [],
+        "OWNER_REVIEW": [],
+        "ARCHIVED": [],
+        "DELETE_READY": [],
+    }
+    counts: dict[str, int] = {}
+
+    for row in conn.execute(
+        "SELECT slug, vercel_public, vercel_public_id, duplicate_status, note"
+        " FROM canonical_resources WHERE vercel_public IS NOT NULL AND vercel_public != ''"
+        " ORDER BY slug"
+    ).fetchall():
+        slug = row["slug"]
+        legacy = row["vercel_public"]
+        status = row["duplicate_status"] or "UNKNOWN"
+        counts[status] = counts.get(status, 0) + 1
+        if slug in done and done[slug]["surface"] == "vercel":
+            state = "CANONICALIZED"
+        elif status == "WEBSITE_ONLY":
+            # A public homepage surface, not a duplicate product. Nothing to
+            # reconcile; the only open question is a naming preference.
+            state = "OWNER_REVIEW"
+        elif status in {"DUPLICATE", "UNKNOWN", "UNIQUE_HISTORY"}:
+            state = "OWNER_REVIEW"
+        elif status == "SUPERSEDED":
+            state = "ARCHIVED"
+        elif status == "CANONICAL_SOURCE_MISNAMED":
+            state = "DELETE_READY"
+        else:
+            state = "OWNER_REVIEW"
+        states[state].append((slug, f"{legacy} · {status}"))
+
+    # A startup whose misnamed project was renamed has no `vercel_public` row
+    # left, so it would otherwise vanish from the report entirely.
+    for row in conn.execute(
+        "SELECT slug, reason, evidence FROM canonicalization_queue"
+        " WHERE operation = 'RENAME_VERCEL_PROJECT' AND risk = 'SAFE'"
+        " ORDER BY id"
+    ).fetchall():
+        states["CANONICALIZED"].append((row["slug"], f"{row['reason']} · id preserved"))
+        counts["CANONICALIZED"] = counts.get("CANONICALIZED", 0) + 1
+
+    for state, items in states.items():
+        print(f"\n{state} ({len(items)})")
+        for slug, detail in items:
+            print(f"  {slug:24} {detail}")
+    print("\nclassifications")
+    for status, count in sorted(counts.items(), key=lambda kv: -kv[1]):
+        print(f"  {status:28} {count}")
+    destructive = len(states["DELETE_READY"]) + len(states["ARCHIVED"])
+    print(
+        f"\nno deletion is performed by this command. {destructive} resource(s) are"
+        " candidates for archive or deletion once you approve them explicitly."
+    )
+    conn.commit()
+    return 0
     return 0
 
 
