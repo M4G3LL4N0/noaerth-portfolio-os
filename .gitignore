@@ -1,11 +1,18 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-data/*.db
-data/*.db-*
-data/local-credential
-data/bootstrap-nonce
-publish/team.json
+data/
 .venv/
 evidence/
 worktrees/
+# Generated report artifacts. The database is the source of truth and these are
+# rebuilt by `portfolio report daily --intelligence`.
+publish/team.json
+publish/daily.json
+publish/daily.md
+publish/daily.html
+reports/
+.DS_Store
+.cursor/
+.opencode/
+.github/
