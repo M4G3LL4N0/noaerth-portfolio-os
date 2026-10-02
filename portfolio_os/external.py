@@ -63,7 +63,16 @@ COPYLEFT_LICENSES = {
     "gpl-3.0", "gpl-2.0", "agpl-3.0", "lgpl-3.0", "lgpl-2.1", "cc-by-sa-4.0",
     "eupl-1.2",
 }
-NONOS_LICENSES = {"other", "unlicensed", "noassertion"}
+# NOASSERTION is GitHub's "we could not determine a license", which is not the
+# same as a proprietary one. It falls through to UNKNOWN so the obligation text
+# says "resolve this" rather than "no source rights".
+NONOS_LICENSES = {"other", "unlicensed"}
+
+#: §36 confidence in a reuse verdict, shared by the surveyor and its callers.
+NOT_RETRIEVED = "NOT_RETRIEVED"
+THIN = "THIN"
+ECOSYSTEM_CLOSED = "ECOSYSTEM_CLOSED"
+
 
 #: §10 classification vocabulary.
 DIRECT_COMPETITOR = "DIRECT_COMPETITOR"
@@ -100,6 +109,12 @@ LANDSCOPE_ARTIFACT = "EXTERNAL_LANDSCAPE.md"
 
 #: Reserved query-log row carrying the survey confidence for a startup.
 SURVEY_ROW = "__survey__"
+
+#: How much weight a survey result can bear (§27).
+SURVEY_NOT_RETRIEVED = "NOT_RETRIEVED"
+SURVEY_THIN = "THIN"
+SURVEY_ECOSYSTEM_CLOSED = "ECOSYSTEM_CLOSED"
+SURVEY_GOOD = "GOOD"
 
 #: Category-specific topical signals. A match here is real domain alignment;
 #: a shared generic word in the name is not.
@@ -1097,15 +1112,25 @@ def reuse_fit(candidate: Candidate, plan: QueryPlan) -> tuple[int, dict[str, int
     # A popular, well-licensed, active project that does a different job is not
     # reusable. Stars, license and activity are necessary but not sufficient, so
     # functional overlap gates the score instead of merely contributing to it.
+    # Scale rather than clamp. A flat ceiling would erase the ranking between two
+    # candidates that share the same weak relevance, which is exactly the
+    # ordering the shortlist depends on.
+    #
+    # The gate is relaxed only for a candidate that shares real topical evidence
+    # while the plan had no distinctive vocabulary to match against: it is the
+    # plan that was thin, not the candidate. A candidate that shares nothing is
+    # off-topic regardless, and takes the full penalty even when the plan is
+    # thin. The survey confidence layer reports thinness separately.
+    relaxed = not distinctive and topical_hits >= 1
     if functional < 30:
-        ceiling = 34.0
+        gate = 0.75 if relaxed else 0.35
     elif functional < 45:
-        ceiling = 52.0
+        gate = 0.85 if relaxed else 0.55
     elif functional < 60:
-        ceiling = 74.0
+        gate = 0.95 if relaxed else 0.78
     else:
-        ceiling = 100.0
-    return round(_clamp(min(total, ceiling))), factors
+        gate = 1.0
+    return round(_clamp(total * gate)), factors
 
 
 def topical_evidence(candidate: Candidate, plan: QueryPlan) -> int:
@@ -1120,9 +1145,20 @@ def topical_evidence(candidate: Candidate, plan: QueryPlan) -> int:
 
 
 def classify_candidate(
-    candidate: Candidate, plan: QueryPlan, fit: int
+    candidate: Candidate,
+    plan: QueryPlan,
+    fit: int,
+    factors: dict[str, int] | None = None,
 ) -> tuple[str, str]:
-    """Returns (classification, could-replace). Deterministic (§10)."""
+    """Returns (classification, could-replace). Deterministic (§10).
+
+    Classification keys on *functional overlap*, not the blended fit. Blend is a
+    quality signal; overlap is a relevance signal. A permissive, popular,
+    well-maintained project doing a different job scores well on blend and must
+    still not be called a reusable foundation.
+    """
+    factors = factors or candidate.reuse_fit_factors
+    functional = int(factors.get("functional_overlap", 0))
     license_class = classify_license(candidate.license_spdx)[0]
     slug_tokens = {t for t in re.split(r"[^a-z0-9]+", plan.slug.lower()) if len(t) > 3}
     name_tokens = {t for t in re.split(r"[^a-z0-9]+", (candidate.name or "").lower())
@@ -1134,30 +1170,35 @@ def classify_candidate(
                                                   f"{candidate.owner}/{candidate.name}".lower())):
         if candidate.stars >= 15:
             return NAME_COLLISION, "Signals a name collision to review, not code to reuse."
-    if license_class == PROPRIETARY and fit >= 45:
-        return LICENSE_RISK, "Competitor reference only; no source reuse permitted."
+    if license_class in (PROPRIETARY, UNKNOWN) and fit >= 45:
+        return LICENSE_RISK, (
+            "No clear source rights: competitor reference only, no reuse until resolved."
+        )
     if _is_academic(candidate) and fit < 70:
         return ACADEMIC_REFERENCE, "Background reading; not a dependency."
     if candidate.archived:
-        if fit >= 60:
+        factors = factors or candidate.reuse_fit_factors
+        functional = int(factors.get("functional_overlap", 0))
+        if functional >= 45 and candidate.stars >= 200:
             return ABANDONED_BUT_USEFUL, (
-                "Unmaintained but substantial; viable as a fork with ownership."
+                "Unmaintained but on-domain and substantial; viable as a fork "
+                "only if we take ownership of maintenance."
             )
         return REFERENCE, "Abandoned; read for design, do not depend."
     topical = topical_evidence(candidate, plan)
-    if fit >= 70 and topical >= 2:
+    if functional >= 58 and fit >= 60 and topical >= 2:
         if name_tokens and (slug_tokens & name_tokens):
             return DIRECT_COMPETITOR, "Same name and same job: a competitor to differentiate from."
         return HIGH_FIT_OPEN_SOURCE, (
             "Could replace a large share of the intended implementation."
         )
-    if fit >= 70:
-        # Popular, but it does not demonstrably speak this domain.
+    if functional >= 40 and fit >= 50 and topical >= 1:
+        return PARTIAL_COMPONENT, "Reusable component rather than a whole system."
+    if fit >= 65:
+        # Popular and healthy, but it does not demonstrably speak this domain.
         return FRAMEWORK if candidate.stars >= 800 else REFERENCE, (
             "Strong project, but no demonstrated overlap with this startup's domain."
         )
-    if fit >= 55 and topical >= 1:
-        return PARTIAL_COMPONENT, "Reusable component rather than a whole system."
     if fit >= 40:
         if candidate.stars >= 500:
             return FRAMEWORK, "Established framework; useful infrastructure if the fit lands."
@@ -1176,7 +1217,12 @@ def decide_reuse(
     if license_class == PROPRIETARY:
         return REJECT, ["Proprietary: no source rights."], ""
     if license_class == UNKNOWN:
-        return OWNER_REVIEW, ["License unresolved; do not copy until resolved."], ""
+        if not (candidate.license_spdx or "").strip():
+            # Nothing declared at all: there are no source rights to rely on.
+            return REJECT, ["No license declared: no source rights."], ""
+        return OWNER_REVIEW, [
+            f"Unrecognised license '{candidate.license_spdx}': do not copy until resolved."
+        ], ""
     if candidate.classification in (DIRECT_COMPETITOR, NAME_COLLISION):
         return REFERENCE_DECISION, ["Competitor or name collision: read, do not copy."], ""
     if license_class == COPYLEFT_REVIEW:
@@ -1408,26 +1454,26 @@ class LandscapeResult:
         A near-empty result is only meaningful if the retrieval actually worked.
         """
         if self.api_calls == 0 and self.cache_hits == 0:
-            return "NOT_RETRIEVED"
+            return SURVEY_NOT_RETRIEVED
         retrieved = len(self.candidates) + len(self.dropped)
         if retrieved < 5:
-            return "THIN"
+            return SURVEY_THIN
         if len(self.candidates) == 0 and retrieved > 30:
             # Many results, all discarded: the ecosystem is not open source.
-            return "ECOSYSTEM_CLOSED"
+            return SURVEY_ECOSYSTEM_CLOSED
         if len(self.candidates) < 3:
-            return "THIN"
-        return "GOOD"
+            return SURVEY_THIN
+        return SURVEY_GOOD
 
     def recommendation(self) -> str:
         counts = self.counts()
         confidence = self.survey_confidence()
-        if confidence in ("NOT_RETRIEVED", "THIN"):
+        if confidence in (SURVEY_NOT_RETRIEVED, SURVEY_THIN):
             return (
                 "INSUFFICIENT EVIDENCE: the survey retrieved too little to conclude. "
                 "Widen sources before treating this as a low-reuse result."
             )
-        if confidence == "ECOSYSTEM_CLOSED":
+        if confidence == SURVEY_ECOSYSTEM_CLOSED:
             return (
                 "CONTINUE CUSTOM (verified): open source is genuinely thin for this "
                 "category, so the research supports building rather than forking. "
@@ -1617,7 +1663,9 @@ def research_startup(
         candidate.reuse_fit = fit
         candidate.reuse_fit_factors = factors
         candidate.license_class = classify_license(candidate.license_spdx)[0]
-        classification, could_replace = classify_candidate(candidate, plan, fit)
+        classification, could_replace = classify_candidate(
+            candidate, plan, fit, candidate.reuse_fit_factors
+        )
         candidate.classification = classification
         candidate.could_replace = could_replace
         decision, risks, attribution = decide_reuse(candidate, plan, fit)
