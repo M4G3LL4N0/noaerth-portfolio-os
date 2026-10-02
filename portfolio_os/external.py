@@ -1170,10 +1170,16 @@ def classify_candidate(
                                                   f"{candidate.owner}/{candidate.name}".lower())):
         if candidate.stars >= 15:
             return NAME_COLLISION, "Signals a name collision to review, not code to reuse."
-    if license_class in (PROPRIETARY, UNKNOWN) and fit >= 45:
-        return LICENSE_RISK, (
-            "No clear source rights: competitor reference only, no reuse until resolved."
+    if license_class in (PROPRIETARY, UNKNOWN) and functional >= 45 and fit >= 55:
+        # §17: a closed-source project solving the same job is a competitor, not
+        # a reuse candidate. Naming it makes the competition visible so the
+        # startup can differentiate rather than quietly rebuild it.
+        return DIRECT_COMPETITOR, (
+            "Same problem, no reusable source. A competitor to differentiate "
+            "from, not code to copy."
         )
+    if license_class == PROPRIETARY and fit >= 45:
+        return LICENSE_RISK, "Closed source: reference only, no reuse permitted."
     if _is_academic(candidate) and fit < 70:
         return ACADEMIC_REFERENCE, "Background reading; not a dependency."
     if candidate.archived:
@@ -1402,7 +1408,7 @@ def portfolio_opportunities(conn: sqlite3.Connection) -> dict[str, Any]:
         items.sort(key=lambda i: -(i["reuse_leverage"] or 0))
 
     return {
-        label: {
+        key: {
             "title": title,
             "count": len(buckets[key]),
             "items": buckets[key][:25],
@@ -1431,6 +1437,9 @@ class LandscapeResult:
     scout_note: str = ""
     artifact_path: str = ""
     error: str = ""
+    sources_consulted: list[str] = field(default_factory=list)
+    provenance: list[dict[str, Any]] = field(default_factory=list)
+    follow_up: list[tuple[str, str]] = field(default_factory=list)
 
     def counts(self) -> dict[str, int]:
         return {
@@ -1452,16 +1461,19 @@ class LandscapeResult:
         """Distinguish "we looked and found little" from "we could not look".
 
         A near-empty result is only meaningful if the retrieval actually worked.
+        Breadth alone proves nothing: several sources all returning noise is
+        still a thin survey, so the verdict keys on relevant findings.
         """
         if self.api_calls == 0 and self.cache_hits == 0:
             return SURVEY_NOT_RETRIEVED
         retrieved = len(self.candidates) + len(self.dropped)
-        if retrieved < 5:
-            return SURVEY_THIN
-        if len(self.candidates) == 0 and retrieved > 30:
-            # Many results, all discarded: the ecosystem is not open source.
-            return SURVEY_ECOSYSTEM_CLOSED
-        if len(self.candidates) < 3:
+        relevant = len([
+            c for c in self.candidates
+            if c.classification not in (IRRELEVANT, REFERENCE)
+        ])
+        if relevant == 0:
+            return SURVEY_ECOSYSTEM_CLOSED if retrieved > 30 else SURVEY_THIN
+        if relevant < 3:
             return SURVEY_THIN
         return SURVEY_GOOD
 
@@ -1528,7 +1540,7 @@ def _result_from_store(
             (slug,),
         ).fetchall()
     ]
-    return LandscapeResult(
+    result = LandscapeResult(
         slug=slug,
         startup_id=startup_id,
         plan=plan,
@@ -1542,6 +1554,10 @@ def _result_from_store(
         scout_model=str((header["scout_model"] if header else "") or ""),
         artifact_path=str((header["artifact_path"] if header else "") or ""),
     )
+    # Reading stored research must also reconcile the follow-up work, otherwise
+    # a startup that was researched before this rule existed never gets a review.
+    result.follow_up = raise_follow_up_work(conn, result)
+    return result
 
 
 def _candidate_from_row(row: sqlite3.Row) -> Candidate:
@@ -1584,6 +1600,58 @@ def _candidate_from_row(row: sqlite3.Row) -> Candidate:
         attribution=get("attribution"),
         scout_note=get("scout_note"),
     )
+
+
+def _registry_hit_is_topical(candidate: Candidate, plan: QueryPlan) -> bool:
+    """Registries match on names, so a name match alone proves nothing.
+
+    ``zrender`` is a real npm package and a total non-sequitur for a procurement
+    product. Require the hit to actually speak the domain before a registry
+    result is allowed to influence the verdict.
+    """
+    if topical_evidence(candidate, plan) > 0:
+        return True
+    haystack = " ".join(
+        [candidate.name, candidate.description, " ".join(candidate.topics)]
+    ).lower()
+    return any(term in haystack for term in _distinctive_terms(plan.one_liner, 2))
+
+
+def _candidates_from_ecosystems(
+    query: str, items: list[Any]
+) -> list[Candidate]:
+    """Turn registry/web hits into first-class candidates.
+
+    Registry identifiers are namespaced by source so ``svelte`` on npm and
+    ``svelte`` on crates never collapse into one another.
+    """
+    out: list[Candidate] = []
+    for item in items:
+        identifier = (item.identifier or "").strip()
+        if not identifier:
+            continue
+        repo = f"{item.source}:{identifier}"
+        owner, _, short = identifier.rpartition("/")
+        if not owner:
+            owner = item.source
+        out.append(
+            Candidate(
+                source=item.source,
+                repo=repo,
+                owner=owner,
+                name=short or identifier,
+                description=item.description,
+                url=item.url,
+                homepage=item.homepage,
+                stars=int(item.stars or 0),
+                language=item.language or "",
+                license_spdx=(item.license or "").strip(),
+                activity=item.published_at or "",
+                topics=list(item.topics or []),
+                matched_queries=[query],
+            )
+        )
+    return out
 
 
 def research_startup(
@@ -1656,6 +1724,35 @@ def research_startup(
             (slug, query, "github", _iso(), len(payload or [])),
         )
 
+    # §7 widen beyond GitHub. Registry and commercial sources catch the
+    # categories where the real competition does not publish on GitHub.
+    provenance: list[dict[str, Any]] = []
+    sources_consulted: list[str] = ["github"]
+    if not dry_run:
+        from . import ecosystems
+
+        extra_queries = plan.queries[:2]
+        items, provenance = ecosystems.survey(extra_queries, per_query=6)
+        for item in items:
+            if item.source == "github":
+                continue  # already covered by the retriever above
+            [candidate] = _candidates_from_ecosystems(item.identifier or "", [item])
+            if not _registry_hit_is_topical(candidate, plan):
+                continue
+            seen = merged.get(candidate.repo)
+            if seen is None:
+                merged[candidate.repo] = candidate
+            elif candidate.matched_queries[0] not in seen.matched_queries:
+                seen.matched_queries.append(candidate.matched_queries[0])
+        for row in provenance:
+            conn.execute(
+                "INSERT OR REPLACE INTO landscape_queries"
+                " (slug, query, source, run_at, result_count) VALUES (?,?,?,?,?)",
+                (slug, row["query"], row["provider"], _iso(), row["results"]),
+            )
+            if row["status"] == "ok" and row["provider"] not in sources_consulted:
+                sources_consulted.append(row["provider"])
+
     kept, dropped = deterministic_filter(list(merged.values()), plan)
 
     for candidate in kept:
@@ -1701,8 +1798,13 @@ def research_startup(
         api_calls=retriever.calls,
         scout_used=result_scout,
         scout_model=getattr(scout, "model", "") if result_scout else "",
+        sources_consulted=sources_consulted,
+        provenance=provenance,
     )
     persist(conn, result)
+    # Research that finds a collision or strong reuse candidates must become work
+    # rather than a note nobody reads.
+    result.follow_up = raise_follow_up_work(conn, result)
     return result
 
 
@@ -1714,6 +1816,74 @@ def _deterministic_rationale(candidate: Candidate, plan: QueryPlan) -> str:
         f"({candidate.stars} stars, {candidate.license_spdx or 'no license'}); "
         f"driven by {drivers}"
     )
+
+
+def raise_follow_up_work(
+    conn: sqlite3.Connection, result: LandscapeResult
+) -> list[tuple[str, str]]:
+    """§15 and §19. Research that finds something must become work, not a note.
+
+    A name collision and a high-fit reuse candidate are both decisions only a
+    human can make, so they are raised as review work. Integration work is not
+    raised here: it may only follow an approved review.
+    """
+    from .engine import ensure_work
+
+    startup = conn.execute(
+        "SELECT id FROM startups WHERE slug = ?", (result.slug,)
+    ).fetchone()
+    if startup is None:
+        return []
+    startup_id = int(startup["id"])
+    raised: list[tuple[str, str]] = []
+
+    collisions = [c for c in result.candidates if c.classification == NAME_COLLISION]
+    if collisions:
+        names = ", ".join(sorted(c.repo for c in collisions)[:4])
+        ensure_work(
+            conn,
+            startup_id,
+            type_="BRAND_COLLISION_REVIEW",
+            title=f"Assess the {result.slug} brand collision before any rename",
+            role="PORTFOLIO_DIRECTOR",
+            priority=70,
+            description=(
+                f"External research found other significant projects using this "
+                f"name: {names}. Do not rename automatically. Assess industry "
+                "overlap, trademark and public confusion risk, domain "
+                "availability, and search discoverability."
+            ),
+        )
+        raised.append(("BRAND_COLLISION_REVIEW", names))
+
+    # 62 is the threshold at which decide_reuse returns INTEGRATE, so this counts
+    # the same candidates the stored high_fit_oss and reuse_opportunities totals
+    # do. Using a stricter bar here would quietly disagree with the headline.
+    strong = [
+        c for c in result.candidates
+        if c.reuse_fit >= 62
+        and c.classification in (HIGH_FIT_OPEN_SOURCE, PARTIAL_COMPONENT, FRAMEWORK)
+        and c.reuse_decision in (ADOPT, FORK, INTEGRATE, WRAP, OWNER_REVIEW)
+    ]
+    if len(strong) >= 2:
+        top = sorted(strong, key=lambda c: -c.reuse_fit)[:4]
+        listing = "; ".join(f"{c.repo} (fit {c.reuse_fit}, {c.license_class})" for c in top)
+        ensure_work(
+            conn,
+            startup_id,
+            type_="EXTERNAL_REUSE_REVIEW",
+            title=f"Decide reuse before building {result.slug} evaluation from scratch",
+            role="PORTFOLIO_DIRECTOR",
+            priority=65 if result.leverage >= 70 else 50,
+            description=(
+                f"Reuse leverage {result.leverage:.0f}/100 with {len(strong)} strong "
+                f"candidates: {listing}. Decide USE, INTEGRATE, FORK, EXTEND, WRAP, "
+                "REFERENCE or CONTINUE CUSTOM, and record why. An approved decision "
+                "becomes INTEGRATION_WORK; until then nothing is integrated."
+            ),
+        )
+        raised.append(("EXTERNAL_REUSE_REVIEW", listing))
+    return raised
 
 
 def persist(conn: sqlite3.Connection, result: LandscapeResult) -> None:
@@ -1757,6 +1927,22 @@ def persist(conn: sqlite3.Connection, result: LandscapeResult) -> None:
             now,
             now,
         ),
+    )
+
+    for row in result.provenance:
+        conn.execute(
+            "INSERT OR REPLACE INTO landscape_sources"
+            " (slug, startup_id, source, status, results, elapsed_ms, recorded_at)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (result.slug, result.startup_id, row["provider"], row["status"],
+             row["results"], row["ms"], now),
+        )
+    conn.execute(
+        "INSERT OR REPLACE INTO landscape_sources"
+        " (slug, startup_id, source, status, results, recorded_at)"
+        " VALUES (?,?,?,?,?,?)",
+        (result.slug, result.startup_id, "github", "ok",
+         counts["high_fit_oss"] + counts["direct_competitors"], now),
     )
 
     # Survey confidence rides in the query log so the artifact, the CLI and the
