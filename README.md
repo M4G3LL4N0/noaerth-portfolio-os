@@ -1,5 +1,9 @@
 # Noaerth Portfolio OS
 
+<p align="center">
+  <img src="assets/social-card.png" alt="Noaerth Portfolio OS" width="100%">
+</p>
+
 **A control plane for a portfolio of autonomous agents — where the database, not the prompt, decides what happens next.**
 
 [![CI](https://github.com/M4G3LL4N0/noaerth-portfolio-os/actions/workflows/ci.yml/badge.svg)](https://github.com/M4G3LL4N0/noaerth-portfolio-os/actions/workflows/ci.yml)
