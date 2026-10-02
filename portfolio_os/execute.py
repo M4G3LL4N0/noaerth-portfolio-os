@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 import subprocess
@@ -31,7 +32,11 @@ from portfolio_os.workspace import (
 )
 
 MAX_REVIEW_ATTEMPTS = 3
-SHOT = Path("/Users/matador/startups/.redteam-evidence/shot.mjs")
+
+# Screenshot helper used for functional visual QA. Resolved from the
+# environment so a clone on any machine works; when it is absent the visual
+# gate reports "no capture tool" rather than silently passing.
+SHOT = Path(os.environ.get("PORTFOLIO_OS_SHOT", Path.home() / "startups" / ".redteam-evidence" / "shot.mjs"))
 
 
 def _run_row(conn, startup_id, role, work_item_id, summary, evidence, status, files, commits):

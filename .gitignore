@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/
+dossiers/
 .venv/
 evidence/
 worktrees/
@@ -15,4 +16,4 @@ reports/
 .DS_Store
 .cursor/
 .opencode/
-.github/
+CLAUDE.md

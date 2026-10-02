@@ -83,14 +83,14 @@ class PortfolioOsTests(unittest.TestCase):
             self.conn,
             actor="system",
             event_type="internal_note",
-            summary="PRIVATE_SYSTEM token=/Users/matador/secret openlegal-data",
+            summary="PRIVATE_SYSTEM token=/home/operator/secret openlegal-data",
             visibility="PRIVATE_SYSTEM",
         )
         add_event(
             self.conn,
             actor="NOAERTH_EDITOR",
             event_type="public_milestone",
-            summary="Tried to publish /Users/matador/startups/acme and a token",
+            summary="Tried to publish /home/operator/startups/acme and a token",
             visibility="PUBLIC",
         )
         public = build_public_snapshot(self.conn)

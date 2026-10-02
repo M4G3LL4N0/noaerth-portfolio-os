@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The control plane targets the stdlib only, so it must pass on every
+        # supported interpreter rather than only the newest one.
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # The control plane itself is stdlib-only. pytest is the only test
+      # dependency, and it is not declared anywhere because there is no
+      # package to declare it in.
+      - name: Install pytest
+        run: python3 -m pip install --upgrade pytest
+
+      - name: Unit tests
+        run: PYTHONPATH=. python3 -m pytest -q
+
+  cli:
+    name: CLI smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Help
+        run: PYTHONPATH=. python3 -m portfolio_os --help
+
+      - name: Doctor
+        run: PYTHONPATH=. python3 -m portfolio_os doctor

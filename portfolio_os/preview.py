@@ -65,7 +65,7 @@ def dev_argv(profile: dict, port: int) -> list[str]:
 
 
 def chrome_capture(slug: str, url: str) -> dict:
-    shot = Path("/Users/matador/startups/.redteam-evidence/shot.mjs")
+    shot = Path(os.environ.get("PORTFOLIO_OS_SHOT", Path.home() / "startups" / ".redteam-evidence" / "shot.mjs"))
     if not shot.is_file() or not url.startswith("http://127.0.0.1:"):
         return {}
     dest = Path(__file__).resolve().parents[1] / "evidence" / slug
