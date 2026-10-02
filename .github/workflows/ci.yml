@@ -52,5 +52,29 @@ jobs:
       - name: Help
         run: PYTHONPATH=. python3 -m portfolio_os --help
 
+      # discover must run first. It seeds the single OWNER-PRIVATE record that
+      # doctor then asserts exists, and on a fresh checkout the database does
+      # not exist yet. Skipping it makes doctor fail for a reason that has
+      # nothing to do with the code under test.
+      - name: Discover into a temporary root
+        run: |
+          mkdir -p "$RUNNER_TEMP/portfolio"
+          PYTHONPATH=. python3 -m portfolio_os \
+            --db "$RUNNER_TEMP/portfolio.db" \
+            --root "$RUNNER_TEMP/portfolio" discover
+
       - name: Doctor
-        run: PYTHONPATH=. python3 -m portfolio_os doctor
+        run: PYTHONPATH=. python3 -m portfolio_os --db "$RUNNER_TEMP/portfolio.db" doctor
+
+      # The public boundary is the security-relevant claim in this project, so
+      # it is asserted on a real run rather than trusted.
+      - name: Publish produces a sanitised snapshot
+        run: |
+          PYTHONPATH=. python3 -m portfolio_os \
+            --db "$RUNNER_TEMP/portfolio.db" publish
+          test -f publish/public.json
+          if grep -qiE 'openlegal|PRIVATE_SYSTEM|"path"' publish/public.json; then
+            echo "public snapshot leaked internal data" >&2
+            exit 1
+          fi
+          echo "public snapshot is sanitised"

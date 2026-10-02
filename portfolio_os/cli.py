@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -361,7 +362,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if "PRIVATE_SYSTEM" in blob or "openlegal" in blob.lower():
         problems.append("public snapshot leaked")
     team = json.dumps(build_team_snapshot(conn))
-    if "openlegal" in team.lower() or "/Users/" in team:
+    # Leak check must not be macOS-specific: a snapshot carrying an absolute
+    # host path leaks the same on Linux. Match any POSIX absolute path, and
+    # a Windows-style drive path for completeness.
+    team_abs_path = re.search(r'"(?:/[^"\s]{2,}|\b[A-Za-z]:\\[^"\s]+)', team)
+    if "openlegal" in team.lower() or team_abs_path:
         problems.append("team snapshot leaked")
     secret = os.environ.get("NOAERTH_TEAM_SECRET", "")
     local_env = Path(args.root) / "noaerth" / ".env.local"
